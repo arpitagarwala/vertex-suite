@@ -49,7 +49,7 @@ export default function LoginPage() {
         <div className="login-logo">
           <div className="login-logo-icon">📦</div>
           <div>
-            <h1 className="login-title">Aura <span>Inventory</span></h1>
+            <h1 className="login-title">Vertex <span>Suite</span></h1>
             <p className="login-tagline">Smart business management for India</p>
           </div>
         </div>

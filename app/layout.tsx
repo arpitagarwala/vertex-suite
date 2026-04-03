@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Aura Inventory — Smart Business Management',
+  title: 'Vertex Suite — Smart Business Management',
   description: 'GST-ready inventory management for Indian small businesses. Track stock, generate invoices, manage C&F agents and grow with smart insights.',
   keywords: 'inventory management, GST billing, Indian GST, small business, GSTR-1, stock tracking',
   manifest: '/manifest.json',

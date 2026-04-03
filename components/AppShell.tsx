@@ -60,7 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">📦</div>
-          <div className="sidebar-logo-text">Aura <span>Inventory</span></div>
+          <div className="sidebar-logo-text">Vertex <span>Suite</span></div>
         </div>
 
         <nav className="sidebar-nav">
