@@ -2,21 +2,36 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Vertex Suite — Smart Business Management',
-  description: 'GST-ready business management for Indian SMBs — Invoicing, Inventory, Purchases & Reports.',
-  keywords: 'inventory management, GST billing, Indian GST, small business, GSTR-1, stock tracking, invoice generator',
-  manifest: '/manifest.json',
-  icons: { icon: '/favicon.ico', apple: '/icon-192.png' },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Vertex Suite',
+  metadataBase: new URL('https://vertex.arpitagarwala.online'),
+  title: {
+    default: 'Vertex Suite — Smart Business Management for India',
+    template: '%s | Vertex Suite'
   },
-  formatDetection: { telephone: false },
+  description: 'GST-ready business management for Indian SMBs. Professional invoicing, inventory tracking, and financial reporting in one unified suite.',
+  keywords: ['GST Billing Software', 'Inventory Management India', 'Small Business Accounting', 'GSTR-1 Export', 'Cloud Billing', 'Vertex Suite'],
+  authors: [{ name: 'Arpit Agarwala' }],
+  creator: 'Arpit Agarwala',
+  publisher: 'Vertex Suite',
+  manifest: '/manifest.json',
+  icons: { 
+    icon: '/logo.svg', 
+    apple: '/logo.svg' 
+  },
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
     title: 'Vertex Suite',
     description: 'Smart business management for Indian SMBs',
+    url: 'https://vertex.arpitagarwala.online',
+    siteName: 'Vertex Suite',
+    locale: 'en_IN',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vertex Suite',
+    description: 'Smart business management for Indian SMBs',
   },
 }
 

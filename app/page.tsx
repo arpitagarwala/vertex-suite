@@ -7,11 +7,9 @@ export default function LandingPage() {
     <div className="landing-page" style={{ background:'var(--bg-base)', minHeight:'100vh', overflowX:'hidden' }}>
       {/* Navbar */}
       <nav style={{ height:'var(--topbar-height)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 var(--space-6)', position:'fixed', top:0, left:0, right:0, zIndex:100, background:'var(--bg-overlay)', backdropFilter:'var(--glass-blur)', borderBottom:'1px solid var(--border-subtle)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ background:'var(--brand-primary)', width:32, height:32, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Icons.Package size={20} color="#fff" />
-          </div>
-          <span style={{ fontWeight:800, fontSize:'1.25rem', letterSpacing:'-0.02em' }}>Vertex <span style={{ color:'var(--brand-primary-light)' }}>Suite</span></span>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <img src="/logo.svg" alt="Vertex Suite Logo" style={{ width:32, height:32, borderRadius:8 }} />
+          <span style={{ fontWeight:800, fontSize:'1.25rem', letterSpacing:'-0.02em', color:'#fff' }}>Vertex <span style={{ color:'var(--brand-primary-light)' }}>Suite</span></span>
         </div>
         <Link href="/login">
           <button className="btn btn-ghost" style={{ fontWeight:600 }}>Sign In</button>
@@ -33,11 +31,10 @@ export default function LandingPage() {
           <p className="animate-slide-up" style={{ fontSize:'1.125rem', color:'var(--text-secondary)', marginBottom:'var(--space-10)', maxWidth:'600px', margin:'0 auto var(--space-10)' }}>
             Transform your business with high-speed GST invoicing, predictive inventory tracking, and beautiful financial reports. 
           </p>
-          <div className="animate-slide-up" style={{ display:'flex', gap:'var(--space-4)', justifyContent:'center', flexWrap:'wrap' }}>
+          <div className="animate-slide-up" style={{ display:'flex', gap:'var(--space-4)', justifyContent:'center' }}>
             <Link href="/login">
-              <button className="btn btn-primary btn-lg" style={{ display:'flex', alignItems:'center', gap:8 }}>Get Started Free <Icons.ChevronRight size={18} /></button>
+              <button className="btn btn-primary btn-lg" style={{ display:'flex', alignItems:'center', gap:8, padding:'0.75rem 2rem' }}>Get Started Free <Icons.ChevronRight size={18} /></button>
             </Link>
-            <button className="btn btn-secondary btn-lg">Watch Demo</button>
           </div>
         </div>
       </section>

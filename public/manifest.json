@@ -1,8 +1,8 @@
 {
   "name": "Vertex Suite",
   "short_name": "Vertex",
-  "description": "GST-ready business management for Indian SMBs — Invoicing, Inventory, Purchases & Reports",
-  "start_url": "/dashboard",
+  "description": "GST-ready business management for Indian SMBs. Professional invoicing, inventory tracking, and financial reporting.",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0a0a0f",
@@ -10,14 +10,13 @@
   "categories": ["business", "finance", "productivity"],
   "lang": "en-IN",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
   "screenshots": [],
   "prefer_related_applications": false,
   "shortcuts": [
-    { "name": "New Invoice", "short_name": "Invoice", "description": "Create a new GST invoice", "url": "/sales/new", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Log Purchase", "short_name": "Purchase", "description": "Record a vendor purchase", "url": "/purchases/new", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
-    { "name": "View Stock", "short_name": "Stock", "description": "Check inventory levels", "url": "/inventory", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+    { "name": "New Invoice", "short_name": "Invoice", "description": "Create a new GST invoice", "url": "/sales/new", "icons": [{ "src": "/logo.svg", "sizes": "any" }] },
+    { "name": "Log Purchase", "short_name": "Purchase", "description": "Record a vendor purchase", "url": "/purchases/new", "icons": [{ "src": "/logo.svg", "sizes": "any" }] },
+    { "name": "View Stock", "short_name": "Stock", "description": "Check inventory levels", "url": "/inventory", "icons": [{ "src": "/logo.svg", "sizes": "any" }] }
   ]
 }

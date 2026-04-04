@@ -76,11 +76,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">
-            <Icons.Package size={18} color="#fff" />
+        <div className="sidebar-brand">
+          <img src="/logo.svg" alt="Vertex" style={{ width:32, height:32, borderRadius:6 }} />
+          <div>
+            <div style={{ fontWeight:800, fontSize:'1.1rem', lineHeight:1.1, color:'#fff' }}>Vertex <span style={{ color:'var(--brand-primary-light)' }}>Suite</span></div>
+            <div style={{ fontSize:'0.7rem', color:'var(--text-muted)', fontWeight:500 }}>Smart Business Management</div>
           </div>
-          <div className="sidebar-logo-text">Vertex <span>Suite</span></div>
         </div>
 
         <nav className="sidebar-nav">
