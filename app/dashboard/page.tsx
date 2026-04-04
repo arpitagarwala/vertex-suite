@@ -224,8 +224,8 @@ export default function DashboardPage() {
               <input type="date" className="form-input" style={{ flex: 1, fontSize: '0.8rem', padding: '6px 10px' }} value={customTo} onChange={e => setCustomTo(e.target.value)} />
             </div>
           )}
-          <div className="chart-container" style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="chart-container" style={{ height: 200, minWidth: 0 }}>
+            <ResponsiveContainer width="100%" height="100%" debounce={100}>
               <AreaChart data={revenueData}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
@@ -248,8 +248,8 @@ export default function DashboardPage() {
           <div style={{ marginBottom: 'var(--space-4)' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Payment Status</h3>
           </div>
-          <div className="chart-container" style={{ height: 200 }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="chart-container" style={{ height: 200, minWidth: 0 }}>
+            <ResponsiveContainer width="100%" height="100%" debounce={100}>
               <PieChart>
                 <Pie data={paymentBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" paddingAngle={3}>
                   {paymentBreakdown.map((_, i) => <Cell key={i} fill={['#10b981','#f59e0b','#ef4444'][i]} />)}
