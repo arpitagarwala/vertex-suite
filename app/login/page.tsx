@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Icons } from '@/components/Icons'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -62,7 +63,9 @@ export default function LoginPage() {
       <div className="login-container animate-fade">
         {/* Logo */}
         <div className="login-logo">
-          <div className="login-logo-icon">📦</div>
+          <div className="login-logo-icon">
+            <Icons.Package size={28} color="#fff" />
+          </div>
           <div>
             <h1 className="login-title">Vertex <span>Suite</span></h1>
             <p className="login-tagline">Smart business management for India</p>
@@ -114,12 +117,12 @@ export default function LoginPage() {
               <input className="form-input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
             </div>
 
-            {error && <div className="toast toast-error" style={{ position:'static', animation:'none' }}>⚠️ {error}</div>}
-            {message && <div className="toast toast-success" style={{ position:'static', animation:'none' }}>✅ {message}</div>}
+            {error && <div className="toast toast-error" style={{ position:'static', animation:'none', display:'flex', alignItems:'center', gap:8 }}><Icons.AlertTriangle size={16} /> {error}</div>}
+            {message && <div className="toast toast-success" style={{ position:'static', animation:'none', display:'flex', alignItems:'center', gap:8 }}><Icons.Check size={16} /> {message}</div>}
 
-            <button type="submit" className="btn btn-primary btn-lg btn-full" disabled={loading}>
-              {loading ? <span className="animate-spin">⏳</span> : null}
-              {loading ? 'Please wait...' : mode === 'login' ? 'Sign In →' : 'Create Account →'}
+            <button type="submit" className="btn btn-primary btn-lg btn-full" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }} disabled={loading}>
+              {loading ? <Icons.RefreshCw size={18} className="animate-spin" /> : null}
+              {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
 
@@ -133,8 +136,8 @@ export default function LoginPage() {
           )}
         </div>
 
-        <p style={{ textAlign:'center', fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'var(--space-4)' }}>
-          🔒 Your data is encrypted and secure · Free forever
+        <p style={{ textAlign:'center', fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'var(--space-4)', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+          <Icons.Lock size={12} /> Your data is encrypted and secure · Free forever
         </p>
       </div>
 
