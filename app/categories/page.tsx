@@ -49,60 +49,73 @@ export default function CategoriesPage() {
     <div className="animate-fade">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">Categories</h1>
-          <p className="page-subtitle">Manage inventory classifications</p>
+          <h1 className="page-title">Product Categories</h1>
+          <p className="page-subtitle">Organize your inventory for better tracking and reports</p>
         </div>
-        <button className="btn btn-primary" onClick={openNew} style={{ display:'flex', alignItems:'center', gap:6 }}>
-          <Icons.Plus size={15} /> New Category
+        <button className="btn btn-primary" onClick={openNew} style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <Icons.Plus size={18} /> New Category
         </button>
       </div>
 
       {loading ? (
-        <div className="skeleton" style={{ height: 200 }} />
+        <div className="grid grid-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 120 }} />)}
+        </div>
       ) : categories.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><Icons.Package size={28} /></div>
+        <div className="empty-state card elevated">
+          <div className="empty-state-icon">
+            <Icons.Inventory size={48} color="var(--brand-primary-light)" />
+          </div>
           <h3>No categories yet</h3>
-          <p>Group your products into categories for better reporting.</p>
-          <button className="btn btn-primary" onClick={openNew}>Create Category</button>
+          <p>Create categories like 'Electronics', 'Grocery', or 'Raw Materials' to organize your products.</p>
+          <button className="btn btn-primary" onClick={openNew} style={{ display:'flex', alignItems:'center', gap:8, marginTop: 'var(--space-4)' }}>
+             <Icons.Plus size={18} /> Create First Category
+          </button>
         </div>
       ) : (
-        <div className="table-wrap table-mobile-card" style={{ maxWidth: 800 }}>
-          <table className="data-table">
-            <thead>
-              <tr><th>Category Name</th><th style={{ width: 100, textAlign:'right' }}>Actions</th></tr>
-            </thead>
-            <tbody>
-              {categories.map(c => (
-                <tr key={c.id}>
-                  <td data-label="Category Name"><div style={{ fontWeight: 600 }}>{c.name}</div></td>
-                  <td data-label="Actions" style={{ textAlign:'right' }}>
-                    <div style={{ display:'flex', gap:'var(--space-2)', justifyContent:'flex-end' }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(c.id, c.name)}><Icons.Edit size={15} /></button>
-                      <button className="btn btn-ghost btn-sm" style={{ color:'var(--brand-danger)' }} onClick={() => deleteCategory(c.id)}><Icons.Trash size={15} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-3 gap-4">
+          {categories.map(c => (
+            <div key={c.id} className="card elevated" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding: 'var(--space-4) var(--space-5)' }}>
+              <div>
+                <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', textTransform:'uppercase', fontWeight:600, letterSpacing:'0.05em', marginBottom:4 }}>Category</div>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{c.name}</div>
+              </div>
+              <div style={{ display:'flex', gap:4 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => openEdit(c.id, c.name)} title="Edit Category">
+                  <Icons.Edit size={16} />
+                </button>
+                <button className="btn btn-ghost btn-sm" style={{ color:'var(--brand-danger)' }} onClick={() => deleteCategory(c.id)} title="Delete">
+                  <Icons.Trash size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="card" style={{ border:'2px dashed var(--border-subtle)', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', minHeight:100, cursor:'pointer' }} onClick={openNew}>
+             <div style={{ display:'flex', alignItems:'center', gap:8, color:'var(--text-muted)', fontWeight:600 }}>
+               <Icons.Plus size={20} /> Add New
+             </div>
+          </div>
         </div>
       )}
 
       {modalOpen && (
         <div className="modal-overlay">
-          <div className="modal">
+          <div className="modal animate-slide-up" style={{ maxWidth: 400 }}>
             <div className="modal-header">
               <h3 className="modal-title">{editingId ? 'Edit Category' : 'New Category'}</h3>
               <button className="modal-close" onClick={() => setModalOpen(false)}><Icons.X size={20} /></button>
             </div>
-            <div className="form-group">
-              <label className="form-label">Category Name</label>
-              <input autoFocus className="form-input" value={catName} onChange={e => setCatName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSave()} />
+            <div className="modal-body" style={{ padding: 'var(--space-6) 0' }}>
+              <div className="form-group">
+                <label className="form-label">Category Name</label>
+                <input autoFocus className="form-input" placeholder="e.g. Mobile Accessories" value={catName} onChange={e => setCatName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSave()} />
+              </div>
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:'var(--space-3)', marginTop:'var(--space-5)' }}>
+            <div className="modal-footer" style={{ display:'flex', justifyContent:'flex-end', gap:'var(--space-3)', marginTop:'var(--space-2)' }}>
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={!catName.trim()}>Save</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={!catName.trim()} style={{ padding: '0.6rem 1.5rem' }}>
+                {editingId ? 'Update Category' : 'Create Category'}
+              </button>
             </div>
           </div>
         </div>
