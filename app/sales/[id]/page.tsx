@@ -435,24 +435,23 @@ export default function InvoiceDetailPage() {
           .invoice-canvas-wrapper {
              width: 100%;
              overflow-x: auto;
-             overflow-y: hidden;
              padding: 1rem 0;
-             margin: 0 -1rem;
-             width: calc(100% + 2rem);
              -webkit-overflow-scrolling: touch;
           }
           
+          /* Document viewer logic */
           .invoice-container {
              width: 850px;
-             padding: 0 1rem;
              margin: 0;
+             padding: 0 1rem;
+             display: block;
           }
           .invoice-box { 
-             background: white; 
+             background: #fff; 
              border: 1px solid #e2e8f0; 
              border-radius: 8px; 
              margin-bottom: 2rem;
-             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
              color: #1e293b;
           }
           .invoice-header-row { border-bottom: 1px solid #e2e8f0; padding: 12px; text-align: center; }
@@ -468,16 +467,33 @@ export default function InvoiceDetailPage() {
           .invoice-item-table { width:100%; border-collapse: collapse; }
           .invoice-item-table th { 
              background: #1e293b; color: #fff !important; 
-             padding: 12px 10px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+             padding: 12px 10px; font-size: 0.8rem; text-transform: uppercase;
           }
           .invoice-item-table td { border: 1px solid #e2e8f0; padding: 12px 10px; font-size: 0.9rem; }
           .breakdown-line { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; }
         }
 
         @media screen and (max-width: 640px) {
-           .page-header { flex-direction: column; align-items: stretch !important; gap: 1rem; }
-           .page-actions { width: 100%; justify-content: flex-start; gap: 0.5rem; }
-           .btn { padding: 8px 12px; font-size: 0.75rem; flex: 1; min-width: calc(50% - 0.5rem); justify-content: center; }
+           .page-header { display: block !important; margin-bottom: var(--space-4); }
+           .page-header-left { margin-bottom: 1rem; }
+           .page-title { font-size: 1.4rem; }
+
+           .page-actions { 
+              display: grid !important; 
+              grid-template-columns: repeat(2, 1fr); 
+              gap: 0.5rem; 
+              width: 100%;
+           }
+           .btn { 
+              padding: 0.6rem; 
+              font-size: 0.75rem !important; 
+              width: 100% !important;
+              height: 44px;
+              justify-content: center;
+              white-space: normal;
+              text-align: center;
+              line-height: 1.1;
+           }
         }
       `}</style>
     </div>
