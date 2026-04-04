@@ -199,122 +199,244 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
-      {/* Invoice Print View */}
-      <div className="invoice-preview" id="invoice-print">
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'2rem', borderBottom:'2px solid #e2e8f0', paddingBottom:'1.5rem' }}>
-          <div>
-            <div style={{ fontSize:'1.6rem', fontWeight:800, color:'#1e293b', letterSpacing:'-0.03em' }}>{profile?.business_name || 'My Business'}</div>
-            {profile?.gstin && <div style={{ fontSize:'0.8rem', color:'#64748b', marginTop:4 }}>GSTIN: {profile.gstin}</div>}
-            <div style={{ fontSize:'0.82rem', color:'#64748b', marginTop:2 }}>{profile?.address}{profile?.city ? `, ${profile.city}` : ''}</div>
-            <div style={{ fontSize:'0.82rem', color:'#64748b' }}>{profile?.state_name}{profile?.pincode ? ` — ${profile.pincode}` : ''}</div>
-            {profile?.phone && <div style={{ fontSize:'0.82rem', color:'#64748b' }}>Ph: {profile.phone}</div>}
+      {/* Professional Invoice Print View */}
+      <div className="invoice-container" id="invoice-print">
+        {/* Bordered Outer Box */}
+        <div className="invoice-box">
+          {/* Header Row */}
+          <div className="invoice-header-row">
+            <div className="invoice-header-title">TAX INVOICE</div>
           </div>
-          <div style={{ textAlign:'right' }}>
-            <div style={{ fontSize:'1.8rem', fontWeight:900, color:'#6366f1', letterSpacing:'-0.05em' }}>TAX INVOICE</div>
-            <div style={{ fontSize:'0.9rem', fontWeight:700, color:'#334155', marginTop:4 }}>#{invoice.invoice_number}</div>
-            <div style={{ fontSize:'0.82rem', color:'#64748b' }}>Date: {format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}</div>
-          </div>
-        </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginBottom:'1.5rem' }}>
-          <div>
-            <div style={{ fontSize:'0.7rem', fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Bill To</div>
-            <div style={{ fontWeight:700, fontSize:'1rem', color:'#1e293b' }}>{invoice.customer_name || 'Walk-in Customer'}</div>
-            {invoice.customer_gstin && <div style={{ fontSize:'0.8rem', color:'#64748b' }}>GSTIN: {invoice.customer_gstin}</div>}
-            {invoice.customer_state_code && <div style={{ fontSize:'0.8rem', color:'#64748b' }}>State Code: {invoice.customer_state_code}</div>}
+          {/* Business & Details Section */}
+          <div className="invoice-grid-2">
+            <div className="invoice-info-box border-right">
+              <div className="label-sm">Consignor (Seller)</div>
+              <div className="business-main-name">{profile?.business_name}</div>
+              <div className="text-sm">{profile?.address}</div>
+              <div className="text-sm">{profile?.city}, {profile?.state_name} - {profile?.pincode}</div>
+              <div className="text-sm">GSTIN/UIN: <strong>{profile?.gstin}</strong></div>
+              <div className="text-sm">State Name: {profile?.state_name}, Code: {profile?.state_code}</div>
+              {profile?.phone && <div className="text-sm">Contact: {profile.phone}</div>}
+            </div>
+            <div className="invoice-info-box">
+              <div className="grid-details">
+                <div className="detail-item border-bottom">
+                  <div className="label-xs">Invoice No.</div>
+                  <div className="value-sm"><strong>{invoice.invoice_number}</strong></div>
+                </div>
+                <div className="detail-item border-bottom">
+                  <div className="label-xs">Dated</div>
+                  <div className="value-sm"><strong>{format(new Date(invoice.invoice_date), 'dd-MMM-yyyy')}</strong></div>
+                </div>
+                <div className="detail-item border-bottom">
+                  <div className="label-xs">Mode/Terms of Payment</div>
+                  <div className="value-sm">{invoice.payment_method}</div>
+                </div>
+                <div className="detail-item border-bottom">
+                  <div className="label-xs">Supply Type</div>
+                  <div className="value-sm" style={{ textTransform:'capitalize' }}>{invoice.supply_type}</div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize:'0.7rem', fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Supply Details</div>
-            <div style={{ fontSize:'0.85rem', color:'#334155', textTransform:'capitalize' }}>Type: {invoice.supply_type}</div>
-            <div style={{ fontSize:'0.85rem', color:'#334155', textTransform:'capitalize' }}>Payment: {invoice.payment_method}</div>
-            {profile?.bank_name && <div style={{ fontSize:'0.8rem', color:'#64748b', marginTop:4 }}>Bank: {profile.bank_name} | A/c: {profile.bank_account} | IFSC: {profile.bank_ifsc}</div>}
-          </div>
-        </div>
 
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', marginBottom:'1.5rem', tableLayout:'fixed' }}>
+          {/* Consignee Section */}
+          <div className="invoice-info-box border-top border-bottom">
+            <div className="label-sm">Consignee (Buyer)</div>
+            <div className="business-sub-name">{invoice.customer_name || 'Walk-in Customer'}</div>
+            {invoice.customer_gstin && <div className="text-sm">GSTIN/UIN: <strong>{invoice.customer_gstin}</strong></div>}
+            {invoice.customer_state_code && <div className="text-sm">State Code: {invoice.customer_state_code}</div>}
+          </div>
+
+          {/* Table Section */}
+          <table className="invoice-item-table">
             <thead>
-              <tr style={{ background:'#f8fafc' }}>
-                {['#','Product / Service','HSN','Qty','Rate','Taxable'].concat(
-                  isInter ? ['IGST%','IGST'] : ['CGST%','CGST','SGST%','SGST']
-                ).concat(['Total']).map((h, i) => (
-                  <th key={i} style={{ padding:'8px 8px', textAlign:i===0?'center':'left', fontSize:'0.7rem', fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:'0.05em', borderBottom:'1px solid #e2e8f0', overflow:'hidden', wordBreak:'break-word' }}>{h}</th>
-                ))}
+              <tr>
+                <th style={{ width: '30px' }}>SNo</th>
+                <th>Description of Goods</th>
+                <th style={{ width: '60px' }}>HSN/SAC</th>
+                <th style={{ width: '60px' }}>Qty</th>
+                <th style={{ width: '70px' }}>Rate</th>
+                <th style={{ width: '50px' }}>per</th>
+                <th style={{ width: '80px' }}>Amount</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, idx) => (
-                <tr key={item.id} style={{ borderBottom:'1px solid #f1f5f9' }}>
-                  <td style={{ padding:'8px', textAlign:'center', fontSize:'0.8rem', color:'#94a3b8' }}>{idx+1}</td>
-                  <td style={{ padding:'8px', fontSize:'0.85rem', fontWeight:600, color:'#1e293b', wordBreak:'break-word' }}>{item.product_name}</td>
-                  <td style={{ padding:'8px', fontSize:'0.75rem', color:'#64748b', fontFamily:'monospace' }}>{item.hsn_code||'—'}</td>
-                  <td style={{ padding:'8px', fontSize:'0.82rem' }}>{item.quantity} {item.unit}</td>
-                  <td style={{ padding:'8px', fontSize:'0.82rem', fontFamily:'monospace' }}>₹{item.unit_price.toFixed(2)}</td>
-                  <td style={{ padding:'8px', fontSize:'0.82rem', fontFamily:'monospace' }}>₹{item.taxable_amount.toFixed(2)}</td>
-                  {isInter ? (
-                    <><td style={{ padding:'8px', fontSize:'0.82rem', color:'#6366f1' }}>{item.igst_rate}%</td><td style={{ padding:'8px', fontSize:'0.82rem', fontFamily:'monospace', color:'#6366f1' }}>₹{item.igst_amount.toFixed(2)}</td></>
-                  ) : (
-                    <><td style={{ padding:'8px', fontSize:'0.82rem', color:'#6366f1' }}>{item.cgst_rate}%</td><td style={{ padding:'8px', fontSize:'0.82rem', fontFamily:'monospace', color:'#6366f1' }}>₹{item.cgst_amount.toFixed(2)}</td>
-                    <td style={{ padding:'8px', fontSize:'0.82rem', color:'#6366f1' }}>{item.sgst_rate}%</td><td style={{ padding:'8px', fontSize:'0.82rem', fontFamily:'monospace', color:'#6366f1' }}>₹{item.sgst_amount.toFixed(2)}</td></>
-                  )}
-                  <td style={{ padding:'8px', fontSize:'0.88rem', fontWeight:700, fontFamily:'monospace', color:'#1e293b' }}>₹{item.total_amount.toFixed(2)}</td>
+                <tr key={item.id}>
+                  <td style={{ textAlign:'center' }}>{idx+1}</td>
+                  <td style={{ fontWeight: 600 }}>{item.product_name}</td>
+                  <td style={{ textAlign:'center' }}>{item.hsn_code||''}</td>
+                  <td style={{ textAlign:'right' }}>{item.quantity} {item.unit}</td>
+                  <td style={{ textAlign:'right' }}>{item.unit_price.toFixed(2)}</td>
+                  <td style={{ textAlign:'center' }}>{item.unit}</td>
+                  <td style={{ textAlign:'right', fontWeight: 600 }}>{item.total_amount.toFixed(2)}</td>
+                </tr>
+              ))}
+              {/* Spacer rows */}
+              {[...Array(Math.max(0, 5 - items.length))].map((_, i) => (
+                <tr key={`space-${i}`} className="spacer-row">
+                  <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="total-row">
+                <td colSpan={3} style={{ textAlign:'right', fontWeight:700 }}>Total</td>
+                <td style={{ textAlign:'right', fontWeight:700 }}>{items.reduce((s,i) => s + i.quantity, 0)}</td>
+                <td></td><td></td>
+                <td style={{ textAlign:'right', fontWeight:700 }}>{formatINR(invoice.grand_total)}</td>
+              </tr>
+            </tfoot>
           </table>
-        </div>
 
-        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'1.5rem' }}>
-          <div style={{ minWidth:280 }}>
-            {[
-              ['Subtotal', formatINR(invoice.subtotal)],
-              isInter ? ['IGST', formatINR(invoice.igst_amount)] : null,
-              !isInter ? ['CGST', formatINR(invoice.cgst_amount)] : null,
-              !isInter ? ['SGST', formatINR(invoice.sgst_amount)] : null,
-              ['Total GST', formatINR(invoice.total_gst)],
-              (invoice as any).cash_discount > 0 ? ['Cash Discount', `— ${formatINR((invoice as any).cash_discount)}`] : null,
-            ].filter(Boolean).map((row, i) => (
-              <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', fontSize:'0.875rem', color:'#475569', borderBottom:'1px solid #f1f5f9' }}>
-                <span>{(row as string[])[0]}</span><span style={{ fontFamily:'monospace' }}>{(row as string[])[1]}</span>
+          {/* Bottom Section */}
+          <div className="invoice-grid-2 border-top">
+            <div className="invoice-info-box border-right">
+              <div className="label-sm">Amount Chargeable (in words)</div>
+              <div className="text-sm" style={{ fontWeight:700, textTransform:'capitalize' }}>Indian Rupees {numberToWords(invoice.grand_total)} Only</div>
+              
+              <div className="tax-summary-box border-top" style={{ marginTop: 10 }}>
+                <table className="tax-table">
+                  <thead>
+                    <tr>
+                      <th>Taxable Val</th>
+                      {isInter ? <th>IGST%</th> : <><th colSpan={2}>CGST</th><th colSpan={2}>SGST</th></>}
+                      <th>Total Tax</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style={{ textAlign:'right' }}>{invoice.subtotal.toFixed(2)}</td>
+                      {isInter ? (
+                        <><td>{((invoice.igst_amount/invoice.subtotal)*100 || 0).toFixed(0)}%</td><td style={{ textAlign:'right' }}>{invoice.igst_amount.toFixed(2)}</td></>
+                      ) : (
+                        <>
+                          <td>{((invoice.cgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td><td style={{ textAlign:'right' }}>{invoice.cgst_amount.toFixed(2)}</td>
+                          <td>{((invoice.sgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td><td style={{ textAlign:'right' }}>{invoice.sgst_amount.toFixed(2)}</td>
+                        </>
+                      )}
+                      <td style={{ textAlign:'right', fontWeight:700 }}>{invoice.total_gst.toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            ))}
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 0', fontSize:'1.1rem', fontWeight:800, color:'#1e293b', borderTop:'2px solid #e2e8f0', marginTop:4 }}>
-              <span>Grand Total</span><span style={{ fontFamily:'monospace', color:'#16a34a' }}>{formatINR(invoice.grand_total)}</span>
+
+              {profile?.bank_name && (
+                <div style={{ marginTop: 10 }}>
+                  <div className="label-xs">Bank Details</div>
+                  <div className="text-xs">Bank: {profile.bank_name} | A/c No: {profile.bank_account}</div>
+                  <div className="text-xs">Branch & IFSC: {profile.bank_ifsc}</div>
+                </div>
+              )}
             </div>
-            {invoice.payment_status === 'partial' && (
-              <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 0', fontSize:'1rem', fontWeight:700, color:'#b45309', marginTop:4 }}>
-                <span>Amount Due</span><span style={{ fontFamily:'monospace' }}>{formatINR(invoice.grand_total - invoice.amount_paid)}</span>
-              </div>
-            )}
+            <div className="invoice-info-box" style={{ textAlign:'right', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+               <div>
+                  <div className="text-xs">E. & O.E.</div>
+               </div>
+               <div>
+                  <div className="label-xs">for {profile?.business_name}</div>
+                  <div style={{ height: 50 }}></div>
+                  <div className="label-sm">Authorised Signatory</div>
+               </div>
+            </div>
           </div>
         </div>
-
-        <div style={{ background:'#f8fafc', padding:'10px 14px', borderRadius:8, fontSize:'0.82rem', color:'#475569', marginBottom:'1.5rem' }}>
-          <strong>Amount in Words:</strong> {numberToWords(invoice.grand_total)}
-        </div>
-        {invoice.notes && <div style={{ fontSize:'0.82rem', color:'#64748b', marginBottom:'1rem' }}><strong>Notes:</strong> {invoice.notes}</div>}
-        {(invoice as any).cash_discount_note && <div style={{ fontSize:'0.82rem', color:'#92400e', marginBottom:'1rem' }}><strong>Discount Note:</strong> {(invoice as any).cash_discount_note}</div>}
-
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', borderTop:'1px solid #e2e8f0', paddingTop:'1rem', marginTop:'1rem' }}>
-          <div style={{ fontSize:'0.75rem', color:'#94a3b8' }}>Computer generated invoice · Vertex Suite</div>
-          <div style={{ textAlign:'right' }}>
-            <div style={{ height:40, borderBottom:'1px solid #94a3b8', width:180, marginBottom:4 }} />
-            <div style={{ fontSize:'0.78rem', color:'#64748b' }}>Authorised Signatory</div>
-            <div style={{ fontSize:'0.8rem', fontWeight:600, color:'#334155' }}>{profile?.business_name}</div>
-          </div>
+        <div style={{ textAlign:'center', fontSize:'0.7rem', color:'#666', marginTop: 5 }}>
+          This is a Computer Generated Invoice
         </div>
       </div>
 
       <style>{`
         @media print {
-          .no-print { display: none !important; }
-          .sidebar, .bottom-nav, .topbar { display: none !important; }
-          .main-content { margin: 0 !important; }
+          body { background: #fff !important; color: #000 !important; }
+          .no-print, .sidebar, .bottom-nav, .topbar { display: none !important; }
+          .main-content { margin: 0 !important; padding: 0 !important; }
           .page-content { padding: 0 !important; }
-          .invoice-preview { box-shadow: none; border-radius: 0; }
+          
+          @page { size: A4; margin: 10mm; }
+          
+          .invoice-container { 
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            color: #000 !important;
+            font-family: 'Inter', sans-serif;
+          }
+          
+          .invoice-box {
+            border: 1px solid #000;
+            width: 100%;
+          }
+          
+          .invoice-header-row {
+            text-align: center;
+            border-bottom: 1px solid #000;
+            padding: 4px;
+          }
+          .invoice-header-title { font-weight: 900; font-size: 11pt; letter-spacing: 1px; }
+          
+          .invoice-grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; }
+          .invoice-info-box { padding: 6px 8px; min-height: 40px; }
+          
+          .grid-details { display: grid; grid-template-columns: 1fr; }
+          .detail-item { display: flex; justify-content: space-between; padding: 2px 0; }
+          
+          .label-sm { font-size: 8pt; font-weight: 700; color: #444; margin-bottom: 2px; }
+          .label-xs { font-size: 7pt; font-weight: 700; color: #666; }
+          .text-sm { font-size: 9pt; line-height: 1.2; }
+          .text-xs { font-size: 8pt; line-height: 1.1; color: #333; }
+          .business-main-name { font-size: 11pt; font-weight: 900; margin-bottom: 2px; }
+          .business-sub-name { font-size: 10pt; font-weight: 800; margin-bottom: 2px; }
+          .value-sm { font-size: 9pt; }
+          
+          .border-right { border-right: 1px solid #000; }
+          .border-bottom { border-bottom: 1px solid #000; }
+          .border-top { border-top: 1px solid #000; }
+          
+          .invoice-item-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .invoice-item-table th, .invoice-item-table td { 
+            border: 1px solid #000; 
+            padding: 4px 6px; 
+            font-size: 8.5pt;
+            word-wrap: break-word;
+          }
+          .invoice-item-table th { background: #f2f2f2 !important; font-weight: 800; text-transform: uppercase; font-size: 7.5pt; }
+          .spacer-row td { height: 20px; border-top: none; border-bottom: none; }
+          .total-row td { background: #f2f2f2 !important; border-top: 1px solid #000; }
+          
+          .tax-table { width: 100%; border-collapse: collapse; margin-top: 4px; border: 1px solid #000; }
+          .tax-table th, .tax-table td { border: 1px solid #000; padding: 2px 4px; font-size: 7.5pt; }
+          .tax-table th { background: #eee !important; font-weight: 700; }
         }
+
         @media screen {
-          .invoice-preview table { table-layout: fixed; word-break: break-word; }
+          .invoice-container {
+             background: white;
+             padding: 2rem;
+             border-radius: 12px;
+             color: #1e293b;
+             box-shadow: var(--shadow-lg);
+             max-width: 850px;
+             margin: 0 auto;
+          }
+          .invoice-box { border: 1px solid #e2e8f0; border-radius: 4px; }
+          .invoice-header-row { border-bottom: 1px solid #e2e8f0; padding: 12px; text-align: center; }
+          .invoice-header-title { font-weight: 800; font-size: 1.2rem; color: var(--brand-primary); }
+          .invoice-grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+          .invoice-info-box { padding: 1rem; }
+          .border-right { border-right: 1px solid #e2e8f0; }
+          .border-bottom { border-bottom: 1px solid #e2e8f0; }
+          .border-top { border-top: 1px solid #e2e8f0; }
+          .label-sm { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+          .business-main-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; }
+          .invoice-item-table { width:100%; border-collapse: collapse; }
+          .invoice-item-table th, .invoice-item-table td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.9rem; }
+          .invoice-item-table th { background: var(--bg-elevated); font-weight: 700; }
+          .tax-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .tax-table th, .tax-table td { border: 1px solid #e2e8f0; padding: 6px; font-size: 0.8rem; }
         }
       `}</style>
     </div>
