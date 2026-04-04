@@ -91,7 +91,8 @@ function InventoryContent() {
           <h1 className="page-title">Inventory</h1>
           <p className="page-subtitle">{products.length} products · {products.filter(p => getStockStatus(p) !== 'good').length} need attention</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display:'flex', gap:'var(--space-3)', alignItems:'center' }}>
+          <Link href="/categories" style={{ color:'var(--brand-primary-light)', textDecoration:'none', fontSize:'0.875rem', fontWeight:600 }}>Manage Categories →</Link>
           <Link href="/inventory/add">
             <button className="btn btn-primary" id="add-product-btn">+ Add Product</button>
           </Link>
@@ -104,9 +105,9 @@ function InventoryContent() {
           <span className="search-icon">🔍</span>
           <input className="form-input" placeholder="Search by name, SKU or HSN code..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="tabs" style={{ minWidth: 240 }}>
+        <div className="tabs" style={{ display: 'flex', width: '100%', background: 'var(--bg-elevated)', padding: 'var(--space-1)', borderRadius: 'var(--radius-lg)' }}>
           {[['all', 'All'], ['low', '⚠️ Low Stock'], ['out', '🔴 Out of Stock']].map(([v, l]) => (
-            <button key={v} className={`tab ${filterStatus === v ? 'active' : ''}`} onClick={() => setFilterStatus(v)}>{l}</button>
+            <button key={v} className={`tab ${filterStatus === v ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2) 0' }} onClick={() => setFilterStatus(v)}>{l}</button>
           ))}
         </div>
       </div>
@@ -166,11 +167,8 @@ function InventoryContent() {
                       </span>
                     </td>
                     <td data-label="Status">
-                      <div className={`flex items-center gap-2 stock-${status}`}>
-                        <span className="stock-dot" />
-                        <span style={{ fontSize: '0.8rem', textTransform: 'capitalize' }}>
-                          {status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'}
-                        </span>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize', color: status === 'out' ? 'var(--brand-danger)' : status === 'low' ? '#f59e0b' : 'var(--brand-primary-light)' }}>
+                        {status === 'out' ? 'Out of Stock' : status === 'low' ? 'Low Stock' : 'In Stock'}
                       </div>
                     </td>
                     <td data-label="Actions">

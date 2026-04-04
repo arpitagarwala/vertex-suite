@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatINR } from '@/lib/gst'
+import { Icons } from '@/components/Icons'
 import type { Customer } from '@/lib/types'
 
 export default function CustomersPage() {
@@ -17,19 +18,23 @@ export default function CustomersPage() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('name', { ascending: true })
+    const { data } = await supabase.from('customers').select('*')
+      .eq('user_id', user.id).neq('customer_type', 'vendor').order('name')
     setCustomers(data || [])
     setLoading(false)
   }
 
+  async function deleteCustomer(id: string) {
+    if (!confirm('Delete this customer?')) return
+    await supabase.from('customers').delete().eq('id', id)
+    load()
+  }
+
   const filtered = customers.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.phone && c.phone.includes(search)) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
+    c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.phone?.includes(search) ||
+    c.email?.toLowerCase().includes(search.toLowerCase()) ||
+    c.gstin?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -37,21 +42,26 @@ export default function CustomersPage() {
       <div className="page-header">
         <div className="page-header-left">
           <h1 className="page-title">Customers</h1>
-          <p className="page-subtitle">{customers.length} registered customers</p>
+          <p className="page-subtitle">{customers.length} clients registered</p>
         </div>
         <div className="page-actions">
           <Link href="/customers/add">
-            <button className="btn btn-primary">+ Add Customer</button>
+            <button className="btn btn-primary" id="add-customer-btn" style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <Icons.Plus size={15} /> Add Customer
+            </button>
           </Link>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
-        <div className="search-bar" style={{ flex: 1, maxWidth: 400 }}>
-          <span className="search-icon">🔍</span>
-          <input className="form-input" placeholder="Search by name, phone or email..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div style={{ marginBottom:'var(--space-5)' }}>
+        <div className="search-bar" style={{ maxWidth: 440 }}>
+          <span className="search-icon"><Icons.Search size={16} /></span>
+          <input className="form-input" placeholder="Search by name, phone, email or GSTIN..." value={search}
+            onChange={e => setSearch(e.target.value)} style={{ paddingLeft:'2.5rem' }} />
         </div>
       </div>
+
+
 
       {loading ? (
         <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
@@ -59,45 +69,50 @@ export default function CustomersPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">👥</div>
+          <div className="empty-state-icon"><Icons.Customers size={28} /></div>
           <h3>No customers found</h3>
-          <p>Add your clients to track their sales and GST details.</p>
-          <Link href="/customers/add"><button className="btn btn-primary">+ Add Customer</button></Link>
+          <p>{search ? 'Try a different search term' : 'Add your clients to track sales and GST details.'}</p>
+          <Link href="/customers/add"><button className="btn btn-primary"><Icons.Plus size={14} /> Add Customer</button></Link>
         </div>
       ) : (
         <div className="table-wrap table-mobile-card">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Customer Name</th>
-                <th>Contact</th>
-                <th>Type / GSTIN</th>
-                <th>Location</th>
-                <th>Total Purchases</th>
+                <th>Customer Name</th><th>Contact</th><th>Type / GSTIN</th><th>Location</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(c => (
                 <tr key={c.id}>
                   <td data-label="Name">
-                    <div style={{ fontWeight: 600 }}>{c.name}</div>
+                    <div style={{ fontWeight:600 }}>{c.name}</div>
+                    {c.address && <div style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>{c.address}</div>}
                   </td>
                   <td data-label="Contact">
-                    <div style={{ fontSize: '0.85rem' }}>{c.phone || '—'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email || ''}</div>
+                    <div style={{ fontSize:'0.875rem' }}>{c.phone || '—'}</div>
+                    <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{c.email || ''}</div>
                   </td>
                   <td data-label="Type/GSTIN">
                     <span className={`badge ${c.customer_type === 'b2b' ? 'badge-primary' : 'badge-secondary'}`}>
-                      {c.customer_type.toUpperCase()}
+                      {c.customer_type?.toUpperCase() || 'B2C'}
                     </span>
-                    {c.gstin && <div className="monospace" style={{ fontSize: '0.75rem', marginTop: 4 }}>{c.gstin}</div>}
+                    {c.gstin && <div className="monospace" style={{ fontSize:'0.72rem', marginTop:4 }}>{c.gstin}</div>}
                   </td>
                   <td data-label="Location">
-                    <div style={{ fontSize: '0.85rem' }}>{c.city || '—'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.state_name || ''}</div>
+                    <div style={{ fontSize:'0.875rem' }}>{c.city || '—'}</div>
+                    <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{c.state_name || ''}</div>
                   </td>
-                  <td data-label="Total Purchases">
-                    <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{formatINR(c.total_purchases || 0)}</div>
+                  <td data-label="Actions">
+                    <div style={{ display:'flex', gap:'var(--space-1)' }}>
+                      <Link href={`/customers/${c.id}/edit`}>
+                        <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={15} /></button>
+                      </Link>
+                      <button className="btn btn-ghost btn-sm" title="Delete" style={{ color:'var(--brand-danger)' }}
+                        onClick={() => deleteCustomer(c.id)}>
+                        <Icons.Trash size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

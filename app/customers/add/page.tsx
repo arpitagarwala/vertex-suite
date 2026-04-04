@@ -79,7 +79,16 @@ export default function AddCustomerPage() {
             {form.customer_type === 'b2b' && (
               <div className="form-group">
                 <label className="form-label">GSTIN <span className="required">*</span></label>
-                <input className="form-input" required placeholder="15-digit GSTIN" value={form.gstin} onChange={e => setForm(f => ({...f, gstin: e.target.value.toUpperCase()}))} />
+                <input className="form-input" required placeholder="15-digit GSTIN" value={form.gstin} onChange={e => {
+                  const val = e.target.value.toUpperCase();
+                  if (val.length >= 2) {
+                    const matchedState = INDIAN_STATES.find(s => s.code === val.slice(0, 2));
+                    if (matchedState) setForm(f => ({...f, gstin: val, state_code: matchedState.code}));
+                    else setForm(f => ({...f, gstin: val}));
+                  } else {
+                    setForm(f => ({...f, gstin: val}));
+                  }
+                }} />
               </div>
             )}
           </div>

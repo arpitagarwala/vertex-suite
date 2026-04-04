@@ -169,7 +169,7 @@ export default function AddProductPage() {
             </div>
             {/* Price preview */}
             {form.sale_price && (
-              <div style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 'var(--space-6)' }}>
+              <div style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>Taxable</div>
                   <div style={{ fontWeight: 700 }}>₹{parseFloat(form.sale_price || '0').toFixed(2)}</div>

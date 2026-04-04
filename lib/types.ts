@@ -23,6 +23,11 @@ export interface Profile {
   pincode: string
   phone: string
   email: string
+  bank_name?: string
+  bank_account?: string
+  bank_ifsc?: string
+  bank_branch?: string
+  enable_cnf?: boolean
   logo_url: string | null
   currency: string
   financial_year_start: number
@@ -110,7 +115,7 @@ export interface Customer {
   city: string
   state_name: string
   state_code: string
-  customer_type: 'b2b' | 'b2c'
+  customer_type: 'b2b' | 'b2c' | 'vendor'
   total_purchases: number
   last_purchase_at: string | null
   created_at: string
@@ -163,6 +168,10 @@ export interface Invoice {
   notes: string
   location_id: string | null
   status: 'active' | 'cancelled'
+  cash_discount?: number
+  cash_discount_note?: string
+  edit_count?: number
+  last_edited_at?: string
   created_at: string
   // Joins
   customer?: Customer

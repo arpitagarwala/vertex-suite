@@ -1,21 +1,32 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { calculateItemGST, calculateInvoiceTotals, formatINR, INDIAN_STATES } from '@/lib/gst'
+import { calculateItemGST, calculateInvoiceTotals, formatINR } from '@/lib/gst'
+import { useDraft } from '@/lib/useDraft'
+import { Icons } from '@/components/Icons'
 import type { Product, Customer, Location, InvoiceItem } from '@/lib/types'
 
-interface LineItem extends InvoiceItem {
-  _key: string
-}
+interface LineItem extends InvoiceItem { _key: string; priceMode: 'exclusive' | 'inclusive'; enteredPrice: number }
+
+const GST_SLABS = [0, 5, 18, 40]
 
 const defaultItem = (): LineItem => ({
   _key: Math.random().toString(36).slice(2),
   product_id: null, product_name: '', hsn_code: '', quantity: 1, unit: 'pcs',
   unit_price: 0, discount_pct: 0, taxable_amount: 0, gst_rate: 18,
   cgst_rate: 0, sgst_rate: 0, igst_rate: 0,
-  cgst_amount: 0, sgst_amount: 0, igst_amount: 0, total_amount: 0
+  cgst_amount: 0, sgst_amount: 0, igst_amount: 0, total_amount: 0,
+  priceMode: 'exclusive', enteredPrice: 0
 })
+
+const defaultForm = {
+  customer_id: '', customer_name: '', customer_gstin: '',
+  customer_state_code: '', supply_type: 'intrastate',
+  invoice_date: new Date().toISOString().split('T')[0],
+  payment_status: 'paid', amount_paid: '', notes: '',
+  location_id: '', bill_number: ''
+}
 
 export default function NewPurchasePage() {
   const router = useRouter()
@@ -24,18 +35,14 @@ export default function NewPurchasePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Customer[]>([])
   const [locations, setLocations] = useState<Location[]>([])
-  const [items, setItems] = useState<LineItem[]>([defaultItem()])
   const [userProfile, setUserProfile] = useState<{ state_code: string }>({ state_code: '27' })
-
-  const [form, setForm] = useState({
-    customer_id: '', customer_name: '', customer_gstin: '',
-    customer_state_code: '', supply_type: 'intrastate',
-    invoice_date: new Date().toISOString().split('T')[0],
-    payment_method: 'cash', payment_status: 'paid',
-    amount_paid: '', notes: '', location_id: '', bill_number: ''
-  })
+  const [items, setItems, clearItemsDraft] = useDraft<LineItem[]>('purchase_items', [defaultItem()])
+  const [form, setForm, clearFormDraft] = useDraft('purchase_form', defaultForm)
+  const [hasDraft, setHasDraft] = useState(false)
 
   useEffect(() => {
+    const stored = localStorage.getItem('vs_draft_purchase_form')
+    if (stored) setHasDraft(true)
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -49,45 +56,29 @@ export default function NewPurchasePage() {
       setSuppliers(custs || [])
       setLocations(locs || [])
       if (profile) setUserProfile(profile)
-      if (locs?.[0]) setForm(f => ({ ...f, location_id: locs[0].id }))
+      if (locs?.[0] && !form.location_id) setForm(f => ({ ...f, location_id: locs[0].id }))
     }
     load()
-  }, [supabase])
+  }, [])
 
-  function recalcItem(item: LineItem, supplyType: string): LineItem {
+  function calcItem(item: LineItem, supplyType: string): LineItem {
     const isInterState = supplyType === 'interstate'
-    const gst = calculateItemGST({
-      quantity: item.quantity || 0,
-      unitPrice: item.unit_price || 0,
-      discountPct: item.discount_pct || 0,
-      gstRate: item.gst_rate as 0|5|12|18|28,
-      isInterState,
-    })
-    return {
-      ...item,
-      taxable_amount: gst.taxableAmount,
-      cgst_rate: gst.cgstRate, sgst_rate: gst.sgstRate, igst_rate: gst.igstRate,
-      cgst_amount: gst.cgstAmount, sgst_amount: gst.sgstAmount, igst_amount: gst.igstAmount,
-      total_amount: gst.grandTotal,
+    let unitPrice = item.unit_price
+    if (item.priceMode === 'inclusive') {
+      unitPrice = (item.enteredPrice || 0) / (1 + item.gst_rate / 100)
     }
+    const gst = calculateItemGST({ quantity: item.quantity || 0, unitPrice, discountPct: item.discount_pct || 0, gstRate: item.gst_rate as 0|5|18|40, isInterState })
+    return { ...item, unit_price: item.priceMode === 'exclusive' ? item.enteredPrice || 0 : unitPrice, taxable_amount: gst.taxableAmount, cgst_rate: gst.cgstRate, sgst_rate: gst.sgstRate, igst_rate: gst.igstRate, cgst_amount: gst.cgstAmount, sgst_amount: gst.sgstAmount, igst_amount: gst.igstAmount, total_amount: gst.grandTotal }
   }
 
-  function updateItem(key: string, field: string, value: string | number | null) {
-    setItems(prev => prev.map(item => {
-      if (item._key !== key) return item
-      const updated = { ...item, [field]: value }
-      return recalcItem(updated, form.supply_type)
-    }))
+  function updateItem(key: string, field: string, value: any) {
+    setItems(prev => prev.map(item => { if (item._key !== key) return item; const updated = { ...item, [field]: value }; return calcItem(updated, form.supply_type) }))
   }
 
   function selectProduct(key: string, productId: string) {
     const p = products.find(p => p.id === productId)
     if (!p) return
-    setItems(prev => prev.map(item => {
-      if (item._key !== key) return item
-      const updated = { ...item, product_id: p.id, product_name: p.name, hsn_code: p.hsn_code || '', unit: p.unit, unit_price: p.cost_price, gst_rate: p.gst_rate }
-      return recalcItem(updated, form.supply_type)
-    }))
+    setItems(prev => prev.map(item => { if (item._key !== key) return item; const updated = { ...item, product_id: p.id, product_name: p.name, hsn_code: p.hsn_code || '', unit: p.unit, unit_price: p.cost_price, enteredPrice: p.cost_price, gst_rate: p.gst_rate }; return calcItem(updated, form.supply_type) }))
   }
 
   function selectSupplier(id: string) {
@@ -95,104 +86,92 @@ export default function NewPurchasePage() {
     if (!s) { setForm(f => ({ ...f, customer_id: '', customer_name: '', customer_gstin: '', customer_state_code: '', supply_type: 'intrastate' })); return }
     const isInter = s.state_code && s.state_code !== userProfile.state_code ? 'interstate' : 'intrastate'
     setForm(f => ({ ...f, customer_id: s.id, customer_name: s.name, customer_gstin: s.gstin || '', customer_state_code: s.state_code, supply_type: isInter }))
-    setItems(prev => prev.map(item => recalcItem(item, isInter)))
+    setItems(prev => prev.map(item => calcItem(item, isInter)))
   }
 
-  const mappedItemsForTotal = items.map(i => ({
-    taxableAmount: i.taxable_amount, cgstAmount: i.cgst_amount,
-    sgstAmount: i.sgst_amount, igstAmount: i.igst_amount, totalAmount: i.total_amount
-  }))
-  const totals = calculateInvoiceTotals(mappedItemsForTotal)
+  const mappedItems = items.map(i => ({ taxableAmount: i.taxable_amount, cgstAmount: i.cgst_amount, sgstAmount: i.sgst_amount, igstAmount: i.igst_amount, totalAmount: i.total_amount }))
+  const totals = calculateInvoiceTotals(mappedItems)
   const isInterState = form.supply_type === 'interstate'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (items.some(i => !i.product_name)) { alert('All line items must have a product name'); return }
-    
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const invoicePayload = {
-      user_id: user.id,
-      invoice_number: form.bill_number || `PUR-${Date.now()}`,
-      invoice_type: 'purchase',
-      customer_id: form.customer_id || null,
-      customer_name: form.customer_name || 'Walk-in Vendor',
-      customer_gstin: form.customer_gstin,
-      customer_state_code: form.customer_state_code,
-      supply_type: form.supply_type,
-      invoice_date: form.invoice_date,
-      subtotal: totals.subtotal,
-      taxable_amount: totals.taxableAmount,
+    const billNum = form.bill_number || `PUR-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*1000)}`
+
+    const { data: invoice, error } = await supabase.from('invoices').insert({
+      user_id: user.id, invoice_number: billNum, invoice_type: 'purchase',
+      customer_id: form.customer_id || null, customer_name: form.customer_name || 'Walk-in Vendor',
+      customer_gstin: form.customer_gstin, customer_state_code: form.customer_state_code,
+      supply_type: form.supply_type, invoice_date: form.invoice_date,
+      subtotal: totals.subtotal, taxable_amount: totals.taxableAmount,
       cgst_amount: totals.cgstAmount, sgst_amount: totals.sgstAmount, igst_amount: totals.igstAmount,
       total_gst: totals.totalGST, grand_total: totals.grandTotal,
       amount_paid: parseFloat(form.amount_paid) || (form.payment_status === 'paid' ? totals.grandTotal : 0),
-      payment_status: form.payment_status, payment_method: form.payment_method,
-      notes: form.notes, location_id: form.location_id || null,
-    }
+      payment_status: form.payment_status, location_id: form.location_id || null, notes: form.notes,
+    }).select().single()
 
-    const { data: invoice, error } = await supabase.from('invoices').insert(invoicePayload).select().single()
     if (error) { alert(error.message); setLoading(false); return }
 
-    const lineItems = items.map(({ _key, ...item }) => ({ ...item, invoice_id: invoice.id }))
+    const lineItems = items.map(({ _key, priceMode, enteredPrice, ...item }) => ({ ...item, invoice_id: invoice.id }))
     await supabase.from('invoice_items').insert(lineItems)
 
-    const movements = []
-    for (const item of items) {
-      if (item.product_id && form.location_id) {
-        const prod = products.find(p => p.id === item.product_id)
-        if (prod && !prod.is_service) {
-           movements.push({
-             user_id: user.id, product_id: item.product_id, location_id: form.location_id,
-             quantity: item.quantity,  // POSITIVE QUANTITY FOR INWARDS
-             movement_type: 'purchase', reference_id: invoice.id, reference_type: 'invoice'
-           })
-        }
-      }
-    }
-    if (movements.length > 0) {
-      await supabase.from('stock_ledger').insert(movements)
-    }
+    const movements = items.filter(i => i.product_id && form.location_id).map(i => ({
+      user_id: user.id, product_id: i.product_id, location_id: form.location_id,
+      quantity: i.quantity, movement_type: 'purchase', reference_id: invoice.id, reference_type: 'invoice'
+    }))
+    if (movements.length > 0) await supabase.from('stock_ledger').insert(movements)
 
-    router.push(`/purchases`)
+    clearFormDraft(); clearItemsDraft()
+    router.push('/purchases')
   }
 
   return (
     <div className="animate-fade">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">Log Purchase</h1>
-          <p className="page-subtitle">Record supplier inwards and increment stock</p>
+          <h1 className="page-title">Add Purchase</h1>
+          <p className="page-subtitle">Record supplier inwards and update stock</p>
         </div>
+        {hasDraft && (
+          <div className="alert alert-info" style={{ padding:'8px 12px', fontSize:'0.8rem' }}>
+            <Icons.Info size={14} /> Draft restored &mdash; <button onClick={() => { clearFormDraft(); clearItemsDraft(); setForm(defaultForm); setItems([defaultItem()]); setHasDraft(false) }} style={{ background:'none', border:'none', color:'inherit', cursor:'pointer', textDecoration:'underline' }}>Clear draft</button>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit}>
         <div style={{ display:'grid', gap:'var(--space-5)' }}>
+
+          {/* Supplier & Meta */}
           <div className="card">
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'var(--space-4)' }}>
-              <div className="form-group" style={{ gridColumn:'1/-1' }}>
+            <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Supplier Details</h3>
+            <div className="purchase-form-grid">
+              <div className="form-group col-span-2">
                 <label className="form-label">Supplier / Vendor</label>
                 <select className="form-select" value={form.customer_id} onChange={e => selectSupplier(e.target.value)}>
                   <option value="">Walk-in Vendor</option>
-                  {suppliers.map(c => <option key={c.id} value={c.id}>{c.name} {c.customer_type === 'b2b' ? '(B2B)' : ''}</option>)}
+                  {suppliers.filter(c => ['vendor','b2b'].includes(c.customer_type)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               {!form.customer_id && (
-                <div className="form-group" style={{ gridColumn:'1/-1' }}>
+                <div className="form-group col-span-2">
                   <label className="form-label">Supplier Name</label>
-                  <input className="form-input" placeholder="Vendor XYZ" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
+                  <input className="form-input" placeholder="Vendor name" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
                 </div>
               )}
               <div className="form-group">
-                <label className="form-label">Vendor Bill #</label>
-                <input className="form-input" required placeholder="INV-001" value={form.bill_number} onChange={e => setForm(f => ({ ...f, bill_number: e.target.value }))} />
+                <label className="form-label">Vendor Bill # <span style={{ color:'var(--text-muted)', fontWeight:400 }}>(optional)</span></label>
+                <input className="form-input" placeholder="e.g. INV-001 (auto if empty)" value={form.bill_number} onChange={e => setForm(f => ({ ...f, bill_number: e.target.value }))} />
               </div>
               <div className="form-group">
                 <label className="form-label">Bill Date</label>
                 <input className="form-input" type="date" required value={form.invoice_date} onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />
               </div>
-              <div className="form-group">
+              <div className="form-group col-span-2">
                 <label className="form-label">Receive at Location</label>
                 <select className="form-select" required value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
                   <option value="">— Select Location —</option>
@@ -202,91 +181,124 @@ export default function NewPurchasePage() {
             </div>
           </div>
 
+          {/* Line Items */}
           <div className="card">
-            <h3 style={{ marginBottom:'var(--space-4)', fontSize:'0.95rem' }}>📦 Procured Items</h3>
+            <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Procured Items</h3>
             <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-              {items.map((item, idx) => (
+              {items.map((item) => (
                 <div key={item._key} style={{ background:'var(--bg-elevated)', borderRadius:'var(--radius-md)', padding:'var(--space-4)', border:'1px solid var(--border-subtle)' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr auto', gap:'var(--space-3)', alignItems:'end' }}>
-                    <div className="form-group">
-                      {idx === 0 && <label className="form-label">Product / Material</label>}
+                  {/* Row 1: Product + Price Mode */}
+                  <div className="purchase-item-row">
+                    <div className="form-group" style={{ flex:'2 1 200px' }}>
+                      <label className="form-label">Product</label>
                       <select className="form-select" value={item.product_id || ''} onChange={e => selectProduct(item._key, e.target.value)}>
                         <option value="">— Select Product —</option>
                         {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </select>
                     </div>
-                    <div className="form-group">
-                      {idx === 0 && <label className="form-label">Inward Qty</label>}
-                      <input className="form-input" type="number" min="0.001" step="0.001" required value={item.quantity} onChange={e => updateItem(item._key, 'quantity', parseFloat(e.target.value) || 0)} />
+                    <div className="form-group" style={{ flex:'1 1 80px', minWidth:80 }}>
+                      <label className="form-label">Qty</label>
+                      <input className="form-input" type="number" min="0.001" step="0.001" required value={item.quantity} onChange={e => updateItem(item._key, 'quantity', parseFloat(e.target.value)||0)} />
                     </div>
-                    <div className="form-group">
-                      {idx === 0 && <label className="form-label">Cost / Unit (₹)</label>}
-                      <input className="form-input" type="number" min="0" step="0.01" required value={item.unit_price} onChange={e => updateItem(item._key, 'unit_price', parseFloat(e.target.value) || 0)} />
-                    </div>
-                    <div className="form-group">
-                      {idx === 0 && <label className="form-label">ITC GST%</label>}
-                      <select className="form-select" value={item.gst_rate} onChange={e => updateItem(item._key, 'gst_rate', parseFloat(e.target.value))}>
-                        {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
+                    <div className="form-group" style={{ flex:'1 1 80px', minWidth:80 }}>
+                      <label className="form-label">GST %</label>
+                      <select className="form-select" value={item.gst_rate} onChange={e => updateItem(item._key,'gst_rate',parseFloat(e.target.value))}>
+                        {GST_SLABS.map(r => <option key={r} value={r}>{r}%</option>)}
                       </select>
                     </div>
-                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      {idx === 0 && <span className="form-label">Total</span>}
-                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)', fontSize:'0.9rem', padding:'10px 0' }}>{formatINR(item.total_amount)}</div>
-                    </div>
                   </div>
-                  <div style={{ display:'flex', gap:'var(--space-4)', marginTop:'var(--space-2)', fontSize:'0.75rem', color:'var(--text-muted)' }}>
+                  {/* Row 2: Price mode + amount */}
+                  <div className="purchase-item-row" style={{ marginTop:'var(--space-3)', alignItems:'center' }}>
+                    <div className="form-group" style={{ flex:'1 1 120px' }}>
+                      <label className="form-label">Price Mode</label>
+                      <div style={{ display:'flex', gap:4 }}>
+                        {(['exclusive','inclusive'] as const).map(m => (
+                          <button key={m} type="button" className={`tab ${item.priceMode===m?'active':''}`} style={{ flex:1, fontSize:'0.75rem', padding:'6px 4px' }} onClick={() => updateItem(item._key,'priceMode',m)}>
+                            {m==='exclusive'?'+ GST':'Incl.'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="form-group" style={{ flex:'1 1 120px' }}>
+                      <label className="form-label">{item.priceMode==='inclusive'?'MRP (Incl. GST)':'Cost/Unit (₹)'}</label>
+                      <input className="form-input" type="number" min="0" step="0.01" required value={item.enteredPrice||''} onChange={e => { const v=parseFloat(e.target.value)||0; updateItem(item._key,'enteredPrice',v); if(item.priceMode==='exclusive') updateItem(item._key,'unit_price',v) }} />
+                    </div>
+                    <div style={{ flex:'1 1 100px', display:'flex', flexDirection:'column', gap:4 }}>
+                      <span className="form-label">Total</span>
+                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)', color:'var(--brand-primary-light)', padding:'10px 0' }}>{formatINR(item.total_amount)}</div>
+                    </div>
+                    {items.length > 1 && (
+                      <button type="button" className="btn btn-ghost btn-sm" style={{ color:'var(--brand-danger)', marginTop:20 }} onClick={() => setItems(p=>p.filter(i=>i._key!==item._key))}>
+                        <Icons.Trash size={15} />
+                      </button>
+                    )}
+                  </div>
+                  {/* GST breakdown mini */}
+                  <div style={{ display:'flex', gap:'var(--space-4)', marginTop:'var(--space-2)', fontSize:'0.72rem', color:'var(--text-muted)', flexWrap:'wrap' }}>
                     <span>Taxable: {formatINR(item.taxable_amount)}</span>
-                    {isInterState
-                      ? <span>IGST ({item.igst_rate}%): {formatINR(item.igst_amount)}</span>
-                      : <><span>CGST: {formatINR(item.cgst_amount)}</span><span>SGST: {formatINR(item.sgst_amount)}</span></>
-                    }
-                    {items.length > 1 && <button type="button" onClick={() => setItems(prev => prev.filter(i => i._key !== item._key))} style={{ marginLeft:'auto', color:'var(--brand-danger)', background:'none', border:'none', cursor:'pointer' }}>✕ Remove</button>}
+                    {isInterState ? <span>IGST ({item.igst_rate}%): {formatINR(item.igst_amount)}</span>
+                      : <><span>CGST: {formatINR(item.cgst_amount)}</span><span>SGST: {formatINR(item.sgst_amount)}</span></>}
                   </div>
                 </div>
               ))}
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop:'var(--space-3)' }} onClick={() => setItems(p => [...p, defaultItem()])}>+ Add Item</button>
+            <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop:'var(--space-3)', display:'flex', alignItems:'center', gap:6 }} onClick={() => setItems(p=>[...p,defaultItem()])}>
+              <Icons.Plus size={14} /> Add Item
+            </button>
           </div>
 
+          {/* Payment + Summary */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-5)' }}>
             <div className="card">
-              <h3 style={{ marginBottom:'var(--space-4)', fontSize:'0.95rem' }}>💳 Payment to Vendor</h3>
+              <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Payment</h3>
               <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
                 <div className="form-group">
                   <label className="form-label">Payment Status</label>
-                  <select className="form-select" value={form.payment_status} onChange={e => setForm(f => ({ ...f, payment_status: e.target.value }))}>
-                    <option value="paid">✅ Fully Paid</option>
-                    <option value="partial">⚡ Partial Payment</option>
-                    <option value="unpaid">⏳ Credit / Unpaid</option>
+                  <select className="form-select" value={form.payment_status} onChange={e => setForm(f=>({...f,payment_status:e.target.value}))}>
+                    <option value="paid">Fully Paid</option>
+                    <option value="partial">Partial Payment</option>
+                    <option value="unpaid">Credit / Unpaid</option>
                   </select>
                 </div>
-                {form.payment_status === 'partial' && (
-                   <div className="form-group">
-                     <label className="form-label">Amount Paid (₹)</label>
-                     <input className="form-input" type="number" min="0" value={form.amount_paid} onChange={e => setForm(f => ({ ...f, amount_paid: e.target.value }))} />
-                   </div>
+                {form.payment_status==='partial' && (
+                  <div className="form-group">
+                    <label className="form-label">Amount Paid (₹)</label>
+                    <input className="form-input" type="number" min="0" value={form.amount_paid} onChange={e=>setForm(f=>({...f,amount_paid:e.target.value}))} />
+                  </div>
                 )}
                 <div className="form-group">
                   <label className="form-label">Notes</label>
-                  <textarea className="form-textarea" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+                  <textarea className="form-textarea" style={{ minHeight:70 }} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} />
                 </div>
               </div>
             </div>
-
             <div className="card">
-              <h3 style={{ marginBottom:'var(--space-4)', fontSize:'0.95rem' }}>🧮 Summary</h3>
-              <div>
-                <div className="gst-breakdown-row"><span>Subtotal</span><span className="monospace">{formatINR(totals.subtotal)}</span></div>
-                <div className="gst-breakdown-row"><span>Total GST (ITC Eligible)</span><span className="monospace" style={{ color:'var(--brand-primary-light)' }}>{formatINR(totals.totalGST)}</span></div>
-                <div className="gst-breakdown-row total"><span>Grand Total</span><span className="monospace" style={{ color:'var(--brand-success)', fontSize:'1.2rem' }}>{formatINR(totals.grandTotal)}</span></div>
+              <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Summary</h3>
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)' }}>
+                <div className="gst-breakdown-row"><span>Subtotal</span><span className="font-mono">{formatINR(totals.subtotal)}</span></div>
+                <div className="gst-breakdown-row"><span>Total GST (ITC)</span><span className="font-mono" style={{ color:'var(--brand-primary-light)' }}>{formatINR(totals.totalGST)}</span></div>
+                <div className="gst-breakdown-row total"><span>Grand Total</span><span className="font-mono" style={{ color:'var(--brand-success)', fontSize:'1.2rem' }}>{formatINR(totals.grandTotal)}</span></div>
               </div>
-              <button type="submit" className="btn btn-primary btn-lg btn-full" style={{ marginTop:'var(--space-5)' }} disabled={loading}>
-                {loading ? '⏳ Saving...' : '✅ Save Purchase & Update Stock'}
+              <button type="submit" className="btn btn-primary btn-lg btn-full" style={{ marginTop:'var(--space-5)', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }} disabled={loading}>
+                <Icons.Check size={16} />
+                {loading ? 'Saving...' : 'Save Purchase & Update Stock'}
               </button>
             </div>
           </div>
         </div>
       </form>
+
+      <style>{`
+        .purchase-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+        .purchase-item-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+        .col-span-2 { grid-column: span 2; }
+        @media (max-width: 640px) {
+          .purchase-form-grid { grid-template-columns: 1fr; }
+          .col-span-2 { grid-column: span 1; }
+          .purchase-item-row { flex-direction: column; }
+          .purchase-item-row > * { flex: 1 1 100% !important; min-width: 100% !important; }
+        }
+      `}</style>
     </div>
   )
 }

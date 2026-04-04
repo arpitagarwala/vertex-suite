@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatINR } from '@/lib/gst'
 import { format } from 'date-fns'
+import { Icons } from '@/components/Icons'
 import type { Invoice } from '@/lib/types'
 
 export default function SalesPage() {
@@ -12,6 +13,8 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [stats, setStats] = useState({ total: 0, paid: 0, unpaid: 0, gst: 0 })
 
   useEffect(() => { load() }, [])
@@ -20,35 +23,37 @@ export default function SalesPage() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('invoice_type', 'sale')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('invoices').select('*')
+      .eq('user_id', user.id).eq('invoice_type', 'sale').eq('status', 'active')
+      .order('invoice_date', { ascending: false })
     const list = data || []
     setInvoices(list)
     setStats({
       total: list.reduce((s, i) => s + i.grand_total, 0),
-      paid: list.filter(i => i.payment_status === 'paid').reduce((s, i) => s + i.grand_total, 0),
-      unpaid: list.filter(i => i.payment_status !== 'paid').reduce((s, i) => s + (i.grand_total - i.amount_paid), 0),
+      paid: list.reduce((s, i) => s + (i.amount_paid || 0), 0),
+      unpaid: list.reduce((s, i) => s + Math.max(0, i.grand_total - (i.amount_paid || 0)), 0),
       gst: list.reduce((s, i) => s + i.total_gst, 0),
     })
     setLoading(false)
   }
 
   async function cancelInvoice(id: string) {
+    if (!confirm('Cancel this invoice? This cannot be undone.')) return
     await supabase.from('invoices').update({ status: 'cancelled' }).eq('id', id)
     load()
   }
 
   const filtered = invoices.filter(inv => {
-    const matchSearch =
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      inv.customer_name.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase()
+    const matchSearch = !q ||
+      inv.invoice_number?.toLowerCase().includes(q) ||
+      inv.customer_name?.toLowerCase().includes(q) ||
+      inv.customer_gstin?.toLowerCase().includes(q)
     const matchStatus = statusFilter === 'all' || inv.payment_status === statusFilter
-    return matchSearch && matchStatus
+    const invDate = inv.invoice_date?.slice(0, 10)
+    const matchFrom = !dateFrom || invDate >= dateFrom
+    const matchTo = !dateTo || invDate <= dateTo
+    return matchSearch && matchStatus && matchFrom && matchTo
   })
 
   const statusBadge = (s: string) => {
@@ -57,49 +62,66 @@ export default function SalesPage() {
     return <span className="badge badge-unpaid">Unpaid</span>
   }
 
+  const STAT_CARDS = [
+    { label: 'Total Sales', val: formatINR(stats.total), color: '#10b981', icon: 'TrendUp' as const },
+    { label: 'Collected', val: formatINR(stats.paid), color: '#6366f1', icon: 'Check' as const },
+    { label: 'Outstanding', val: formatINR(stats.unpaid), color: '#f59e0b', icon: 'AlertTriangle' as const },
+    { label: 'GST Collected', val: formatINR(stats.gst), color: '#06b6d4', icon: 'FileText' as const },
+  ]
+
   return (
     <div className="animate-fade">
       <div className="page-header">
         <div className="page-header-left">
           <h1 className="page-title">Sales & Invoices</h1>
-          <p className="page-subtitle">{invoices.length} invoices</p>
+          <p className="page-subtitle">{invoices.length} invoices · {filtered.length} shown</p>
         </div>
         <div className="page-actions">
           <Link href="/sales/new">
-            <button className="btn btn-primary" id="new-sale-btn">+ New Invoice</button>
+            <button className="btn btn-primary" id="new-sale-btn" style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <Icons.Plus size={15} /> New Invoice
+            </button>
           </Link>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-4 gap-4" style={{ marginBottom: 'var(--space-6)' }}>
-        {[
-          { label: 'Total Sales', val: formatINR(stats.total), color: '#10b981', icon: '💰' },
-          { label: 'Collected', val: formatINR(stats.paid), color: '#6366f1', icon: '✅' },
-          { label: 'Outstanding', val: formatINR(stats.unpaid), color: '#f59e0b', icon: '⏳' },
-          { label: 'GST Collected', val: formatINR(stats.gst), color: '#06b6d4', icon: '📋' },
-        ].map((s, i) => (
-          <div key={i} className="stat-card" style={{ '--accent-color': s.color } as React.CSSProperties}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="stat-label">{s.label}</span>
-              <span style={{ fontSize: '1.2rem' }}>{s.icon}</span>
+      {/* Stat Cards */}
+      <div className="grid grid-4 gap-4" style={{ marginBottom: 'var(--space-5)' }}>
+        {STAT_CARDS.map((s, i) => {
+          const IconComp = Icons[s.icon]
+          return (
+            <div key={i} className="stat-card" style={{ '--accent-color': s.color } as React.CSSProperties}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span className="stat-label">{s.label}</span>
+                <div className="stat-icon" style={{ background:`${s.color}1a` }}><IconComp size={16} color={s.color} /></div>
+              </div>
+              <div className="stat-value" style={{ fontSize:'1.25rem' }}>{s.val}</div>
             </div>
-            <div className="stat-value" style={{ fontSize: '1.3rem' }}>{s.val}</div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
-        <div className="search-bar" style={{ flex: 1, minWidth: 200 }}>
-          <span className="search-icon">🔍</span>
-          <input className="form-input" placeholder="Search invoice # or customer..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div style={{ display:'flex', gap:'var(--space-3)', marginBottom:'var(--space-5)', flexWrap:'wrap', alignItems:'center' }}>
+        <div className="search-bar" style={{ flex:'1 1 220px' }}>
+          <span className="search-icon"><Icons.Search size={16} /></span>
+          <input className="form-input" placeholder="Search invoice #, customer, GSTIN..." value={search}
+            onChange={e => setSearch(e.target.value)} style={{ paddingLeft:'2.5rem' }} />
         </div>
-        <div className="tabs" style={{ minWidth: 260 }}>
+        <input type="date" className="form-input" style={{ flex:'0 0 150px' }} value={dateFrom}
+          onChange={e => setDateFrom(e.target.value)} title="From date" />
+        <input type="date" className="form-input" style={{ flex:'0 0 150px' }} value={dateTo}
+          onChange={e => setDateTo(e.target.value)} title="To date" />
+        <div className="tabs" style={{ display: 'flex', width: '100%', background: 'var(--bg-elevated)', padding: 'var(--space-1)', borderRadius: 'var(--radius-lg)' }}>
           {[['all','All'],['paid','Paid'],['partial','Partial'],['unpaid','Unpaid']].map(([v,l]) => (
-            <button key={v} className={`tab ${statusFilter===v?'active':''}`} onClick={() => setStatusFilter(v)}>{l}</button>
+            <button key={v} className={`tab ${statusFilter===v?'active':''}`} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2) 0' }} onClick={() => setStatusFilter(v)}>{l}</button>
           ))}
         </div>
+        {(search || dateFrom || dateTo || statusFilter !== 'all') && (
+          <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setStatusFilter('all') }}>
+            <Icons.X size={13} /> Clear
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -109,23 +131,18 @@ export default function SalesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🧾</div>
+          <div className="empty-state-icon"><Icons.Sales size={28} /></div>
           <h3>No invoices found</h3>
-          <p>Create your first GST invoice to get started</p>
-          <Link href="/sales/new"><button className="btn btn-primary">+ New Invoice</button></Link>
+          <p>{search ? 'Try a different search term or clear filters' : 'Create your first GST invoice to get started'}</p>
+          <Link href="/sales/new"><button className="btn btn-primary"><Icons.Plus size={14} /> New Invoice</button></Link>
         </div>
       ) : (
         <div className="table-wrap table-mobile-card">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Invoice #</th>
-                <th>Customer</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>GST</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>Invoice #</th><th>Customer</th><th>Date</th>
+                <th>Amount</th><th>GST</th><th>Status</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -133,9 +150,10 @@ export default function SalesPage() {
                 <tr key={inv.id}>
                   <td data-label="Invoice #">
                     <span className="monospace" style={{ color:'var(--brand-primary-light)', fontWeight:600 }}>{inv.invoice_number}</span>
+                    {(inv as any).edit_count > 0 && <span className="badge badge-warning" style={{ marginLeft:4, fontSize:'0.65rem' }}>Edited</span>}
                   </td>
                   <td data-label="Customer">
-                    <div style={{ fontWeight:500 }}>{inv.customer_name || 'Walk-in Customer'}</div>
+                    <div style={{ fontWeight:500 }}>{inv.customer_name || 'Walk-in'}</div>
                     <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', textTransform:'capitalize' }}>{inv.supply_type}</div>
                   </td>
                   <td data-label="Date" style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>
@@ -144,7 +162,10 @@ export default function SalesPage() {
                   <td data-label="Amount">
                     <div style={{ fontWeight:700, fontFamily:'var(--font-mono)' }}>{formatINR(inv.grand_total)}</div>
                     {inv.payment_status === 'partial' && (
-                      <div style={{ fontSize:'0.75rem', color:'var(--brand-warning)' }}>Paid: {formatINR(inv.amount_paid)}</div>
+                      <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', display:'flex', flexDirection:'column', gap:2, marginTop:4 }}>
+                        <div>Paid: <span style={{ color:'var(--brand-success)' }}>{formatINR(inv.amount_paid)}</span></div>
+                        <div>Due: <span style={{ color:'var(--brand-warning)', fontWeight:600 }}>{formatINR(inv.grand_total - inv.amount_paid)}</span></div>
+                      </div>
                     )}
                   </td>
                   <td data-label="GST" style={{ fontFamily:'var(--font-mono)', fontSize:'0.875rem' }}>{formatINR(inv.total_gst)}</td>
@@ -152,12 +173,15 @@ export default function SalesPage() {
                   <td data-label="Actions">
                     <div style={{ display:'flex', gap:'var(--space-1)' }}>
                       <Link href={`/sales/${inv.id}`}>
-                        <button className="btn btn-ghost btn-sm" title="View">👁️</button>
+                        <button className="btn btn-ghost btn-sm" title="View"><Icons.Eye size={15} /></button>
                       </Link>
-                      <Link href={`/sales/${inv.id}/print`}>
-                        <button className="btn btn-ghost btn-sm" title="Print">🖨️</button>
+                      <Link href={`/sales/${inv.id}/edit`}>
+                        <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={15} /></button>
                       </Link>
-                      <button className="btn btn-ghost btn-sm" title="Cancel" onClick={() => { if(confirm('Cancel this invoice?')) cancelInvoice(inv.id) }}>✕</button>
+                      <button className="btn btn-ghost btn-sm" title="Cancel" style={{ color:'var(--brand-danger)' }}
+                        onClick={() => cancelInvoice(inv.id)}>
+                        <Icons.X size={15} />
+                      </button>
                     </div>
                   </td>
                 </tr>

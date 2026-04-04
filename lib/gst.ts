@@ -3,7 +3,7 @@
 // CGST + SGST for intrastate, IGST for interstate
 // ============================================================
 
-export type GSTRate = 0 | 5 | 12 | 18 | 28
+export type GSTRate = 0 | 5 | 18 | 40
 
 export interface GSTBreakdown {
   taxableAmount: number
@@ -68,7 +68,8 @@ export function calculateInvoiceTotals(
   const sgstAmount = items.reduce((s, i) => s + i.sgstAmount, 0)
   const igstAmount = items.reduce((s, i) => s + i.igstAmount, 0)
   const totalGST = cgstAmount + sgstAmount + igstAmount
-  const grandTotal = taxableAmount + totalGST
+  const exactTotal = taxableAmount + totalGST
+  const grandTotal = Math.round(exactTotal)
 
   return { subtotal, taxableAmount, cgstAmount, sgstAmount, igstAmount, totalGST, grandTotal }
 }
@@ -111,14 +112,13 @@ export function numberToWords(num: number): string {
 /**
  * GST rate slabs for India
  */
-export const GST_RATES: GSTRate[] = [0, 5, 12, 18, 28]
+export const GST_RATES: GSTRate[] = [0, 5, 18, 40]
 
 export const GST_RATE_LABELS: Record<GSTRate, string> = {
   0: 'Exempt (0%)',
   5: '5% GST',
-  12: '12% GST',
   18: '18% GST',
-  28: '28% GST',
+  40: '40% GST',
 }
 
 /**

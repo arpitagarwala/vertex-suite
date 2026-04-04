@@ -22,6 +22,11 @@ CREATE TABLE profiles (
   pincode TEXT DEFAULT '',
   phone TEXT DEFAULT '',
   email TEXT DEFAULT '',
+  enable_cnf BOOLEAN DEFAULT FALSE,
+  bank_name TEXT DEFAULT NULL,
+  bank_account TEXT DEFAULT NULL,
+  bank_ifsc TEXT DEFAULT NULL,
+  bank_branch TEXT DEFAULT NULL,
   logo_url TEXT DEFAULT NULL,
   currency TEXT DEFAULT 'INR',
   financial_year_start INT DEFAULT 4, -- April
@@ -161,6 +166,10 @@ CREATE TABLE invoices (
   notes TEXT DEFAULT '',
   location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'active',              -- active | cancelled
+  edit_count INT DEFAULT 0,
+  last_edited_at TIMESTAMPTZ DEFAULT NULL,
+  cash_discount DECIMAL(14,2) DEFAULT 0,
+  cash_discount_note TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
