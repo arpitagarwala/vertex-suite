@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Icons } from '@/components/Icons'
 import { formatINR } from '@/lib/gst'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 
@@ -146,11 +147,11 @@ export default function ReportsPage() {
             <label className="form-label">Select Month</label>
             <input type="month" className="form-input" value={month} onChange={e => setMonth(e.target.value)} />
           </div>
-          <button className="btn btn-secondary" onClick={exportCSV} disabled={loading || data.invoices.length === 0}>
-            📄 Export CSV
+          <button className="btn btn-secondary" style={{ display:'flex', alignItems:'center', gap:8 }} onClick={exportCSV} disabled={loading || data.invoices.length === 0}>
+            <Icons.FileText size={16} /> Export CSV
           </button>
-          <button className="btn btn-primary" onClick={exportJSON} disabled={loading || data.invoices.length === 0}>
-            📤 Export GSTR-1 JSON
+          <button className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:8 }} onClick={exportJSON} disabled={loading || data.invoices.length === 0}>
+            <Icons.Upload size={16} /> Export GSTR-1 JSON
           </button>
         </div>
       </div>

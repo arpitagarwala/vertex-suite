@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Icons } from '@/components/Icons'
 import { GST_RATES, GST_RATE_LABELS } from '@/lib/gst'
 import type { Category, Location } from '@/lib/types'
 
@@ -195,7 +196,10 @@ export default function AddProductPage() {
           {/* Stock */}
           {!form.is_service && (
             <div className="card">
-              <h3 style={{ marginBottom: 'var(--space-5)', fontSize: '0.95rem' }}>📦 Stock Settings</h3>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:'var(--space-5)' }}>
+                <Icons.Inventory size={20} color="var(--brand-primary-light)" />
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Stock Settings</h3>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
                 <div className="form-group">
                   <label className="form-label">Low Stock Alert (units)</label>
@@ -217,8 +221,8 @@ export default function AddProductPage() {
                   </>
                 )}
                 {locations.length === 0 && (
-                  <div style={{ gridColumn: '1 / -1', padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    💡 Add a location in Settings to track opening stock.
+                  <div style={{ gridColumn: '1 / -1', padding: 'var(--space-3)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-muted)', display:'flex', alignItems:'center', gap:8 }}>
+                    <Icons.Info size={16} /> Add a location in Settings to track opening stock.
                   </div>
                 )}
               </div>
@@ -227,8 +231,9 @@ export default function AddProductPage() {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
-              {loading ? '⏳ Saving...' : '✅ Save Product'}
+            <button type="submit" className="btn btn-primary btn-lg" style={{ display:'flex', alignItems:'center', gap:8 }} disabled={loading}>
+              {loading ? <Icons.RefreshCw size={18} className="animate-spin" /> : <Icons.Check size={18} />}
+              {loading ? 'Saving...' : 'Save Product'}
             </button>
             <button type="button" className="btn btn-secondary btn-lg" onClick={() => router.push('/inventory')}>
               Cancel

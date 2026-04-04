@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Icons } from '@/components/Icons'
 import type { Product, Location } from '@/lib/types'
 
 export default function NewTransferPage() {
@@ -111,11 +112,11 @@ export default function NewTransferPage() {
                      {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <input className="form-input" type="number" min="1" placeholder="Qty" required value={item.quantity || ''} onChange={e => setItems(p => p.map(i => i._key === item._key ? {...i, quantity: parseFloat(e.target.value)} : i))} />
-                  <button type="button" className="btn btn-ghost" onClick={() => setItems(p => p.filter(i => i._key !== item._key))} disabled={items.length === 1}>✕</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setItems(p => p.filter(i => i._key !== item._key))} disabled={items.length === 1}><Icons.X size={16} /></button>
                 </div>
               ))}
             </div>
-            <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-3)' }} onClick={() => setItems(p => [...p, {product_id: '', quantity: 1, _key: Math.random().toString()}])}>+ Add Item</button>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-3)', display:'flex', alignItems:'center', gap:6 }} onClick={() => setItems(p => [...p, {product_id: '', quantity: 1, _key: Math.random().toString()}])}><Icons.Plus size={14} /> Add Item</button>
           </div>
 
           <div className="form-group">
@@ -124,7 +125,8 @@ export default function NewTransferPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button type="submit" className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:8 }} disabled={loading}>
+              {loading ? <Icons.RefreshCw size={18} className="animate-spin" /> : <Icons.Plus size={18} />}
               {loading ? 'Processing...' : 'Queue Transfer'}
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => router.push('/transfers')}>

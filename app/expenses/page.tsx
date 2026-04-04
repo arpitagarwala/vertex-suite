@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Icons } from '@/components/Icons'
 import { createClient } from '@/lib/supabase/client'
 import { formatINR } from '@/lib/gst'
 import { format } from 'date-fns'
@@ -50,8 +51,10 @@ export default function ExpensesPage() {
       {loading ? (
         <div className="skeleton" style={{ height: 200 }} />
       ) : expenses.length === 0 ? (
-        <div className="empty-state">
-           <div className="empty-state-icon">💸</div>
+         <div className="empty-state">
+            <div className="empty-state-icon">
+              <Icons.Expenses size={48} color="var(--brand-danger)" />
+            </div>
            <h3>No expenses logged</h3>
            <p>Start tracking your business overheads</p>
            <Link href="/expenses/add"><button className="btn btn-primary">+ Log Expense</button></Link>

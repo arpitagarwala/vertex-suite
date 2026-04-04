@@ -142,7 +142,7 @@ export default function DashboardPage() {
     <div className="animate-fade">
       <div className="page-header">
         <div className="page-header-left">
-          <h1 className="page-title">{greeting} 👋</h1>
+          <h1 className="page-title">{greeting}</h1>
           <p className="page-subtitle">{businessName} · {format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
         <div className="page-actions">

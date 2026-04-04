@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { Icons } from '@/components/Icons'
 import { createClient } from '@/lib/supabase/client'
 import { formatINR } from '@/lib/gst'
 import type { Product } from '@/lib/types'
@@ -101,13 +102,19 @@ function InventoryContent() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-5)', flexWrap: 'wrap' }}>
-        <div className="search-bar" style={{ flex: 1, minWidth: 200 }}>
-          <span className="search-icon">🔍</span>
-          <input className="form-input" placeholder="Search by name, SKU or HSN code..." value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="search-bar" style={{ flex: 1, minWidth: 200, position:'relative' }}>
+          <span className="search-icon" style={{ left:'1rem', top:'50%', transform:'translateY(-50%)', position:'absolute', fontSize:'1rem' }}>
+            <Icons.Search size={16} />
+          </span>
+          <input className="form-input" style={{ paddingLeft:'2.8rem' }} placeholder="Search by name, SKU or HSN code..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="tabs" style={{ display: 'flex', width: '100%', background: 'var(--bg-elevated)', padding: 'var(--space-1)', borderRadius: 'var(--radius-lg)' }}>
-          {[['all', 'All'], ['low', '⚠️ Low Stock'], ['out', '🔴 Out of Stock']].map(([v, l]) => (
-            <button key={v} className={`tab ${filterStatus === v ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2) 0' }} onClick={() => setFilterStatus(v)}>{l}</button>
+          {[['all', 'All'], ['low', 'Low Stock'], ['out', 'Out of Stock']].map(([v, l]) => (
+            <button key={v} className={`tab ${filterStatus === v ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2) 0', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }} onClick={() => setFilterStatus(v)}>
+              {v === 'low' && <Icons.AlertTriangle size={14} color="var(--brand-warning)" />}
+              {v === 'out' && <Icons.X size={14} color="var(--brand-danger)" />}
+              {l}
+            </button>
           ))}
         </div>
       </div>
@@ -119,7 +126,9 @@ function InventoryContent() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📦</div>
+          <div className="empty-state-icon">
+            <Icons.Package size={48} color="var(--brand-primary-light)" />
+          </div>
           <h3>No products found</h3>
           <p>{search ? 'Try a different search term' : 'Add your first product to get started'}</p>
           <Link href="/inventory/add"><button className="btn btn-primary">+ Add Product</button></Link>
@@ -174,12 +183,12 @@ function InventoryContent() {
                     <td data-label="Actions">
                       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                         <Link href={`/inventory/${p.id}`}>
-                          <button className="btn btn-ghost btn-sm" title="View Details">👁️</button>
+                          <button className="btn btn-ghost btn-sm" title="View Details"><Icons.Eye size={16} /></button>
                         </Link>
                         <Link href={`/inventory/${p.id}/edit`}>
-                          <button className="btn btn-ghost btn-sm" title="Edit">✏️</button>
+                          <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={16} /></button>
                         </Link>
-                        <button className="btn btn-ghost btn-sm" title="Delete" onClick={() => setShowDeleteId(p.id)}>🗑️</button>
+                        <button className="btn btn-ghost btn-sm" title="Delete" style={{ color:'var(--brand-danger)' }} onClick={() => setShowDeleteId(p.id)}><Icons.Trash size={16} /></button>
                       </div>
                     </td>
                   </tr>
