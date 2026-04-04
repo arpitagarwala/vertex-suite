@@ -134,6 +134,12 @@ export default function InvoiceDetailPage() {
 
   const isInter = invoice.supply_type === 'interstate'
 
+  // Helper to chunk items for multi-page printing (10 items per page)
+  const itemChunks = []
+  for (let i = 0; i < items.length; i += 10) {
+    itemChunks.push(items.slice(i, i + 10))
+  }
+
   return (
     <div className="animate-fade">
       <div className="page-header no-print">
@@ -199,152 +205,177 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
-      {/* Professional Invoice Print View */}
-      <div className="invoice-container" id="invoice-print">
-        {/* Bordered Outer Box */}
-        <div className="invoice-box">
-          {/* Header Row */}
-          <div className="invoice-header-row">
-            <div className="invoice-header-title">TAX INVOICE</div>
-          </div>
-
-          {/* Business & Details Section */}
-          <div className="invoice-grid-2">
-            <div className="invoice-info-box border-right">
-              <div className="label-sm">Consignor (Seller)</div>
-              <div className="business-main-name">{profile?.business_name}</div>
-              <div className="text-sm">{profile?.address}</div>
-              <div className="text-sm">{profile?.city}, {profile?.state_name} - {profile?.pincode}</div>
-              <div className="text-sm">GSTIN/UIN: <strong>{profile?.gstin}</strong></div>
-              <div className="text-sm">State Name: {profile?.state_name}, Code: {profile?.state_code}</div>
-              {profile?.phone && <div className="text-sm">Contact: {profile.phone}</div>}
-            </div>
-            <div className="invoice-info-box">
-              <div className="grid-details">
-                <div className="detail-item border-bottom">
-                  <div className="label-xs">Invoice No.</div>
-                  <div className="value-sm"><strong>{invoice.invoice_number}</strong></div>
+      {/* Professional Invoice Preview / Print Canvas */}
+      <div className="invoice-canvas-wrapper">
+        <div className="invoice-container" id="invoice-print">
+          {itemChunks.map((chunk, pageIdx) => {
+             const isLastPage = pageIdx === itemChunks.length - 1;
+             return (
+              <div className="invoice-box" key={pageIdx} style={{ marginBottom: pageIdx < itemChunks.length - 1 ? '20mm' : 0 }}>
+                {/* Header Row */}
+                <div className="invoice-header-row">
+                  <div className="invoice-header-title">TAX INVOICE {itemChunks.length > 1 ? `(Page ${pageIdx + 1})` : ''}</div>
                 </div>
-                <div className="detail-item border-bottom">
-                  <div className="label-xs">Dated</div>
-                  <div className="value-sm"><strong>{format(new Date(invoice.invoice_date), 'dd-MMM-yyyy')}</strong></div>
-                </div>
-                <div className="detail-item border-bottom">
-                  <div className="label-xs">Mode/Terms of Payment</div>
-                  <div className="value-sm">{invoice.payment_method}</div>
-                </div>
-                <div className="detail-item border-bottom">
-                  <div className="label-xs">Supply Type</div>
-                  <div className="value-sm" style={{ textTransform:'capitalize' }}>{invoice.supply_type}</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Consignee Section */}
-          <div className="invoice-info-box border-top border-bottom">
-            <div className="label-sm">Consignee (Buyer)</div>
-            <div className="business-sub-name">{invoice.customer_name || 'Walk-in Customer'}</div>
-            {invoice.customer_gstin && <div className="text-sm">GSTIN/UIN: <strong>{invoice.customer_gstin}</strong></div>}
-            {invoice.customer_state_code && <div className="text-sm">State Code: {invoice.customer_state_code}</div>}
-          </div>
+                {/* Business & Details Section */}
+                <div className="invoice-grid-2">
+                  <div className="invoice-info-box border-right">
+                    <div className="label-sm">Consignor (Seller)</div>
+                    <div className="business-main-name">{profile?.business_name}</div>
+                    <div className="text-sm">{profile?.address}</div>
+                    <div className="text-sm">{profile?.city}, {profile?.state_name} - {profile?.pincode}</div>
+                    <div className="text-sm">GSTIN/UIN: <strong>{profile?.gstin}</strong></div>
+                    <div className="text-sm">State Name: {profile?.state_name}, Code: {profile?.state_code}</div>
+                    {profile?.phone && <div className="text-sm">Contact: {profile.phone}</div>}
+                  </div>
+                  <div className="invoice-info-box">
+                    <div className="grid-details">
+                      <div className="detail-item border-bottom">
+                        <div className="label-xs">Invoice No.</div>
+                        <div className="value-sm"><strong>{invoice.invoice_number}</strong></div>
+                      </div>
+                      <div className="detail-item border-bottom">
+                        <div className="label-xs">Dated</div>
+                        <div className="value-sm"><strong>{format(new Date(invoice.invoice_date), 'dd-MMM-yyyy')}</strong></div>
+                      </div>
+                      <div className="detail-item border-bottom">
+                        <div className="label-xs">Mode/Terms of Payment</div>
+                        <div className="value-sm">{invoice.payment_method}</div>
+                      </div>
+                      <div className="detail-item border-bottom">
+                        <div className="label-xs">Supply Type</div>
+                        <div className="value-sm" style={{ textTransform:'capitalize' }}>{invoice.supply_type}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Table Section */}
-          <table className="invoice-item-table">
-            <thead>
-              <tr>
-                <th style={{ width: '30px' }}>SNo</th>
-                <th>Description of Goods</th>
-                <th style={{ width: '60px' }}>HSN/SAC</th>
-                <th style={{ width: '60px' }}>Qty</th>
-                <th style={{ width: '70px' }}>Rate</th>
-                <th style={{ width: '50px' }}>per</th>
-                <th style={{ width: '80px' }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, idx) => (
-                <tr key={item.id}>
-                  <td style={{ textAlign:'center' }}>{idx+1}</td>
-                  <td style={{ fontWeight: 600 }}>{item.product_name}</td>
-                  <td style={{ textAlign:'center' }}>{item.hsn_code||''}</td>
-                  <td style={{ textAlign:'right' }}>{item.quantity} {item.unit}</td>
-                  <td style={{ textAlign:'right' }}>{item.unit_price.toFixed(2)}</td>
-                  <td style={{ textAlign:'center' }}>{item.unit}</td>
-                  <td style={{ textAlign:'right', fontWeight: 600 }}>{item.total_amount.toFixed(2)}</td>
-                </tr>
-              ))}
-              {/* Spacer rows */}
-              {[...Array(Math.max(0, 5 - items.length))].map((_, i) => (
-                <tr key={`space-${i}`} className="spacer-row">
-                  <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="total-row">
-                <td colSpan={3} style={{ textAlign:'right', fontWeight:700 }}>Total</td>
-                <td style={{ textAlign:'right', fontWeight:700 }}>{items.reduce((s,i) => s + i.quantity, 0)}</td>
-                <td></td><td></td>
-                <td style={{ textAlign:'right', fontWeight:700 }}>{formatINR(invoice.grand_total)}</td>
-              </tr>
-            </tfoot>
-          </table>
+                {/* Consignee Section */}
+                <div className="invoice-info-box border-top border-bottom">
+                  <div className="label-sm">Consignee (Buyer)</div>
+                  <div className="business-sub-name">{invoice.customer_name || 'Walk-in Customer'}</div>
+                  {invoice.customer_gstin && <div className="text-sm">GSTIN/UIN: <strong>{invoice.customer_gstin}</strong></div>}
+                  {invoice.customer_state_code && <div className="text-sm">State Code: {invoice.customer_state_code}</div>}
+                </div>
 
-          {/* Bottom Section */}
-          <div className="invoice-grid-2 border-top">
-            <div className="invoice-info-box border-right">
-              <div className="label-sm">Amount Chargeable (in words)</div>
-              <div className="text-sm" style={{ fontWeight:700, textTransform:'capitalize' }}>Indian Rupees {numberToWords(invoice.grand_total)} Only</div>
-              
-              <div className="tax-summary-box border-top" style={{ marginTop: 10 }}>
-                <table className="tax-table">
+                {/* Table Section */}
+                <table className="invoice-item-table">
                   <thead>
                     <tr>
-                      <th>Taxable Val</th>
-                      {isInter ? <th>IGST%</th> : <><th colSpan={2}>CGST</th><th colSpan={2}>SGST</th></>}
-                      <th>Total Tax</th>
+                      <th style={{ width: '30px' }}>SNo</th>
+                      <th>Description of Goods</th>
+                      <th style={{ width: '60px' }}>HSN/SAC</th>
+                      <th style={{ width: '60px' }}>Qty</th>
+                      <th style={{ width: '70px' }}>Rate</th>
+                      <th style={{ width: '50px' }}>per</th>
+                      <th style={{ width: '80px' }}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td style={{ textAlign:'right' }}>{invoice.subtotal.toFixed(2)}</td>
-                      {isInter ? (
-                        <><td>{((invoice.igst_amount/invoice.subtotal)*100 || 0).toFixed(0)}%</td><td style={{ textAlign:'right' }}>{invoice.igst_amount.toFixed(2)}</td></>
-                      ) : (
-                        <>
-                          <td>{((invoice.cgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td><td style={{ textAlign:'right' }}>{invoice.cgst_amount.toFixed(2)}</td>
-                          <td>{((invoice.sgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td><td style={{ textAlign:'right' }}>{invoice.sgst_amount.toFixed(2)}</td>
-                        </>
-                      )}
-                      <td style={{ textAlign:'right', fontWeight:700 }}>{invoice.total_gst.toFixed(2)}</td>
-                    </tr>
+                    {chunk.map((item, idx) => (
+                      <tr key={item.id}>
+                        <td style={{ textAlign:'center' }}>{(pageIdx * 10) + idx + 1}</td>
+                        <td style={{ fontWeight: 600 }}>{item.product_name}</td>
+                        <td style={{ textAlign:'center' }}>{item.hsn_code||''}</td>
+                        <td style={{ textAlign:'right' }}>{item.quantity} {item.unit}</td>
+                        <td style={{ textAlign:'right' }}>{item.unit_price.toFixed(2)}</td>
+                        <td style={{ textAlign:'center' }}>{item.unit}</td>
+                        <td style={{ textAlign:'right', fontWeight: 600 }}>{item.total_amount.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                    {/* Fill remaining space to match 10 rows (industry standard tally look) */}
+                    {[...Array(Math.max(0, 10 - chunk.length))].map((_, i) => (
+                      <tr key={`space-${i}`} className="spacer-row">
+                        <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                      </tr>
+                    ))}
                   </tbody>
+                  {isLastPage && (
+                    <tfoot>
+                      <tr className="total-row">
+                        <td colSpan={3} style={{ textAlign:'right', fontWeight:700 }}>Total</td>
+                        <td style={{ textAlign:'right', fontWeight:700 }}>{items.reduce((s,i) => s + i.quantity, 0)}</td>
+                        <td></td><td></td>
+                        <td style={{ textAlign:'right', fontWeight:700 }}>{formatINR(invoice.grand_total)}</td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
-              </div>
 
-              {profile?.bank_name && (
-                <div style={{ marginTop: 10 }}>
-                  <div className="label-xs">Bank Details</div>
-                  <div className="text-xs">Bank: {profile.bank_name} | A/c No: {profile.bank_account}</div>
-                  <div className="text-xs">Branch & IFSC: {profile.bank_ifsc}</div>
+                {/* Bottom Section (Signatory repeated on every page) */}
+                <div className="invoice-grid-2 border-top">
+                  <div className="invoice-info-box border-right">
+                    {isLastPage ? (
+                      <>
+                        <div className="label-sm">Amount Chargeable (in words)</div>
+                        <div className="text-sm" style={{ fontWeight:700, textTransform:'capitalize', marginBottom: 8 }}>
+                          Indian Rupees {numberToWords(Math.round(invoice.grand_total))} Only
+                        </div>
+
+                        {/* Precise Detailed Breakdown for Manual Matching */}
+                        <div className="detailed-breakdown-row border-top" style={{ paddingTop: 8 }}>
+                           <div className="breakdown-line">
+                              <span>Total Taxable Value</span>
+                              <span>{invoice.subtotal.toFixed(2)}</span>
+                           </div>
+                           {!isInter ? (
+                             <>
+                               <div className="breakdown-line">
+                                  <span>Add: CGST</span>
+                                  <span>{invoice.cgst_amount.toFixed(2)}</span>
+                               </div>
+                               <div className="breakdown-line">
+                                  <span>Add: SGST</span>
+                                  <span>{invoice.sgst_amount.toFixed(2)}</span>
+                               </div>
+                             </>
+                           ) : (
+                             <div className="breakdown-line">
+                                <span>Add: IGST</span>
+                                <span>{invoice.igst_amount.toFixed(2)}</span>
+                             </div>
+                           )}
+                           {(invoice as any).cash_discount > 0 && (
+                             <div className="breakdown-line" style={{ color: 'var(--brand-danger)' }}>
+                                <span>Less: Cash Discount</span>
+                                <span>(-) {((invoice as any).cash_discount || 0).toFixed(2)}</span>
+                             </div>
+                           )}
+                           <div className="breakdown-line" style={{ borderTop: '1px solid #000', marginTop: 4, paddingTop: 4, fontWeight: 700 }}>
+                              <span>Grand Total</span>
+                              <span>{invoice.grand_total.toFixed(2)}</span>
+                           </div>
+                        </div>
+
+                        {profile?.bank_name && (
+                          <div style={{ marginTop: 10 }}>
+                            <div className="label-xs">Bank Details</div>
+                            <div className="text-xs">Bank: {profile.bank_name} | A/c No: {profile.bank_account}</div>
+                            <div className="text-xs">Branch & IFSC: {profile.bank_ifsc}</div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:'#666', fontSize:'0.8rem', fontStyle:'italic' }}>
+                        Continued on Page {pageIdx + 2}...
+                      </div>
+                    )}
+                  </div>
+                  <div className="invoice-info-box" style={{ textAlign:'right', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                    <div><div className="text-xs">E. & O.E.</div></div>
+                    <div>
+                      <div className="label-xs">for {profile?.business_name}</div>
+                      <div style={{ height: 40 }}></div>
+                      <div className="label-sm">Authorised Signatory</div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-            <div className="invoice-info-box" style={{ textAlign:'right', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
-               <div>
-                  <div className="text-xs">E. & O.E.</div>
-               </div>
-               <div>
-                  <div className="label-xs">for {profile?.business_name}</div>
-                  <div style={{ height: 50 }}></div>
-                  <div className="label-sm">Authorised Signatory</div>
-               </div>
-            </div>
+              </div>
+             )
+          })}
+          <div style={{ textAlign:'center', fontSize:'0.7rem', color:'#666', marginTop: 5 }}>
+            This is a Computer Generated Invoice
           </div>
-        </div>
-        <div style={{ textAlign:'center', fontSize:'0.7rem', color:'#666', marginTop: 5 }}>
-          This is a Computer Generated Invoice
         </div>
       </div>
 
@@ -357,40 +388,34 @@ export default function InvoiceDetailPage() {
           
           @page { size: A4; margin: 10mm; }
           
+          .invoice-canvas-wrapper { overflow: visible !important; }
           .invoice-container { 
             display: block !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             color: #000 !important;
-            font-family: 'Inter', sans-serif;
           }
           
           .invoice-box {
             border: 1px solid #000;
             width: 100%;
+            page-break-after: always;
+            box-shadow: none !important;
           }
           
-          .invoice-header-row {
-            text-align: center;
-            border-bottom: 1px solid #000;
-            padding: 4px;
-          }
-          .invoice-header-title { font-weight: 900; font-size: 11pt; letter-spacing: 1px; }
+          .invoice-header-row { text-align: center; border-bottom: 1px solid #000; padding: 4px; }
+          .invoice-header-title { font-weight: 900; font-size: 11pt; }
           
           .invoice-grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; }
-          .invoice-info-box { padding: 6px 8px; min-height: 40px; }
+          .invoice-info-box { padding: 6px 8px; }
           
-          .grid-details { display: grid; grid-template-columns: 1fr; }
-          .detail-item { display: flex; justify-content: space-between; padding: 2px 0; }
-          
-          .label-sm { font-size: 8pt; font-weight: 700; color: #444; margin-bottom: 2px; }
-          .label-xs { font-size: 7pt; font-weight: 700; color: #666; }
-          .text-sm { font-size: 9pt; line-height: 1.2; }
-          .text-xs { font-size: 8pt; line-height: 1.1; color: #333; }
-          .business-main-name { font-size: 11pt; font-weight: 900; margin-bottom: 2px; }
-          .business-sub-name { font-size: 10pt; font-weight: 800; margin-bottom: 2px; }
-          .value-sm { font-size: 9pt; }
+          .label-sm { font-size: 8pt; font-weight: 700; color: #000; }
+          .label-xs { font-size: 7pt; font-weight: 700; color: #000; }
+          .text-sm { font-size: 9pt; }
+          .text-xs { font-size: 8pt; }
+          .business-main-name { font-size: 11pt; font-weight: 900; }
+          .business-sub-name { font-size: 10pt; font-weight: 800; }
           
           .border-right { border-right: 1px solid #000; }
           .border-bottom { border-bottom: 1px solid #000; }
@@ -398,45 +423,52 @@ export default function InvoiceDetailPage() {
           
           .invoice-item-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
           .invoice-item-table th, .invoice-item-table td { 
-            border: 1px solid #000; 
-            padding: 4px 6px; 
-            font-size: 8.5pt;
-            word-wrap: break-word;
+            border: 1px solid #000; padding: 4px 6px; font-size: 8.5pt;
           }
-          .invoice-item-table th { background: #f2f2f2 !important; font-weight: 800; text-transform: uppercase; font-size: 7.5pt; }
-          .spacer-row td { height: 20px; border-top: none; border-bottom: none; }
-          .total-row td { background: #f2f2f2 !important; border-top: 1px solid #000; }
-          
-          .tax-table { width: 100%; border-collapse: collapse; margin-top: 4px; border: 1px solid #000; }
-          .tax-table th, .tax-table td { border: 1px solid #000; padding: 2px 4px; font-size: 7.5pt; }
-          .tax-table th { background: #eee !important; font-weight: 700; }
+          .invoice-item-table th { background: #eee !important; font-weight: 800; color: #000 !important; }
+          .spacer-row td { height: 24px; }
+
+          .breakdown-line { display: flex; justify-content: space-between; font-size: 8.5pt; margin-bottom: 2px; }
         }
 
         @media screen {
+          .invoice-canvas-wrapper {
+             width: 100%;
+             overflow-x: auto;
+             padding: 2rem 0;
+             cursor: grab;
+          }
+          .invoice-canvas-wrapper:active { cursor: grabbing; }
+          
           .invoice-container {
-             background: white;
-             padding: 2rem;
-             border-radius: 12px;
-             color: #1e293b;
-             box-shadow: var(--shadow-lg);
-             max-width: 850px;
+             width: 800px;
              margin: 0 auto;
           }
-          .invoice-box { border: 1px solid #e2e8f0; border-radius: 4px; }
+          .invoice-box { 
+             background: white; 
+             border: 1px solid #e2e8f0; 
+             border-radius: 4px; 
+             margin-bottom: 2rem;
+             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+             color: #1e293b;
+          }
           .invoice-header-row { border-bottom: 1px solid #e2e8f0; padding: 12px; text-align: center; }
-          .invoice-header-title { font-weight: 800; font-size: 1.2rem; color: var(--brand-primary); }
+          .invoice-header-title { font-weight: 800; font-size: 1.1rem; color: #475569; }
           .invoice-grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
-          .invoice-info-box { padding: 1rem; }
+          .invoice-info-box { padding: 1.25rem; }
           .border-right { border-right: 1px solid #e2e8f0; }
           .border-bottom { border-bottom: 1px solid #e2e8f0; }
           .border-top { border-top: 1px solid #e2e8f0; }
+          
           .label-sm { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
-          .business-main-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; }
+          .business-main-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; color: #0f172a; }
           .invoice-item-table { width:100%; border-collapse: collapse; }
-          .invoice-item-table th, .invoice-item-table td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.9rem; }
-          .invoice-item-table th { background: var(--bg-elevated); font-weight: 700; }
-          .tax-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          .tax-table th, .tax-table td { border: 1px solid #e2e8f0; padding: 6px; font-size: 0.8rem; }
+          .invoice-item-table th { 
+             background: #1e293b; color: #fff !important; 
+             padding: 12px 10px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+          }
+          .invoice-item-table td { border: 1px solid #e2e8f0; padding: 12px 10px; font-size: 0.9rem; }
+          .breakdown-line { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; }
         }
       `}</style>
     </div>
