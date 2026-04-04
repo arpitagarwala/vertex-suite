@@ -63,9 +63,7 @@ export default function LoginPage() {
       <div className="login-container animate-fade">
         {/* Logo */}
         <div className="login-logo">
-          <div className="login-logo-icon">
-            <Icons.Package size={28} color="#fff" />
-          </div>
+          <img src="/logo.svg" alt="Vertex Suite Logo" style={{ width:40, height:40, borderRadius:10 }} />
           <div>
             <h1 className="login-title">Vertex <span>Suite</span></h1>
             <p className="login-tagline">Smart business management for India</p>
