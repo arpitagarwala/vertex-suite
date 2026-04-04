@@ -263,12 +263,12 @@ export default function InvoiceDetailPage() {
                 <table className="invoice-item-table items-list">
                   <thead>
                     <tr>
-                      <th style={{ width: '5%' }}>S.No.</th>
-                      <th style={{ width: '45%' }}>Description of Goods</th>
-                      <th style={{ width: '10%' }}>HSN/SAC</th>
-                      <th style={{ width: '10%' }}>Qty</th>
-                      <th style={{ width: '10%' }}>Rate</th>
-                      <th style={{ width: '5%' }}>per</th>
+                      <th style={{ width: '8%', whiteSpace: 'nowrap' }}>S.No.</th>
+                      <th style={{ width: '37%' }}>Description of Goods</th>
+                      <th style={{ width: '12%', whiteSpace: 'nowrap' }}>HSN/SAC</th>
+                      <th style={{ width: '8%' }}>Qty</th>
+                      <th style={{ width: '12%' }}>Rate</th>
+                      <th style={{ width: '8%', whiteSpace: 'nowrap' }}>per</th>
                       <th style={{ width: '15%' }}>Amount</th>
                     </tr>
                   </thead>
@@ -320,23 +320,25 @@ export default function InvoiceDetailPage() {
                           <table className="tax-table">
                             <thead>
                               <tr>
-                                <th>Taxable Val</th>
-                                {isInter ? <th>IGST%</th> : <><th colSpan={2}>CGST</th><th colSpan={2}>SGST</th></>}
-                                <th>Total Tax</th>
+                                <th style={{ whiteSpace:'nowrap' }}>Taxable Val</th>
+                                {isInter ? <th style={{ whiteSpace:'nowrap' }}>IGST%</th> : <><th colSpan={2} style={{ whiteSpace:'nowrap' }}>CGST</th><th colSpan={2} style={{ whiteSpace:'nowrap' }}>SGST</th></>}
+                                <th style={{ whiteSpace:'nowrap' }}>Total Tax</th>
                               </tr>
                             </thead>
                             <tbody>
                               <tr>
-                                <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>{invoice.subtotal.toFixed(2)}</td>
+                                <td style={{ textAlign:'right', whiteSpace:'nowrap', padding: '4px 8px' }}>{invoice.subtotal.toFixed(2)}</td>
                                 {isInter ? (
-                                  <><td>{((invoice.igst_amount/invoice.subtotal)*100 || 0).toFixed(0)}%</td><td style={{ textAlign:'right', whiteSpace:'nowrap' }}>{invoice.igst_amount.toFixed(2)}</td></>
+                                  <><td>{((invoice.igst_amount/invoice.subtotal)*100 || 0).toFixed(0)}%</td><td style={{ textAlign:'right', whiteSpace:'nowrap', padding: '4px 8px' }}>{invoice.igst_amount.toFixed(2)}</td></>
                                 ) : (
                                   <>
-                                    <td>{((invoice.cgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td><td style={{ textAlign:'right', whiteSpace:'nowrap' }}>{invoice.cgst_amount.toFixed(2)}</td>
-                                    <td>{((invoice.sgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td><td style={{ textAlign:'right', whiteSpace:'nowrap' }}>{invoice.sgst_amount.toFixed(2)}</td>
+                                    <td style={{ textAlign:'center', fontSize: '7pt' }}>{((invoice.cgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td>
+                                    <td style={{ textAlign:'right', whiteSpace:'nowrap', padding: '4px 8px' }}>{invoice.cgst_amount.toFixed(2)}</td>
+                                    <td style={{ textAlign:'center', fontSize: '7pt' }}>{((invoice.sgst_amount/invoice.subtotal)*100 || 0).toFixed(1)}%</td>
+                                    <td style={{ textAlign:'right', whiteSpace:'nowrap', padding: '4px 8px' }}>{invoice.sgst_amount.toFixed(2)}</td>
                                   </>
                                 )}
-                                <td style={{ textAlign:'right', fontWeight:700, whiteSpace:'nowrap' }}>{invoice.total_gst.toFixed(2)}</td>
+                                <td style={{ textAlign:'right', fontWeight:700, whiteSpace:'nowrap', padding: '4px 8px' }}>{invoice.total_gst.toFixed(2)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -419,7 +421,7 @@ export default function InvoiceDetailPage() {
           .invoice-item-table th, .invoice-item-table td { 
             border: 1px solid #000; 
             padding: 4px 6px; 
-            font-size: 8.5pt;
+            font-size: 8pt;
             word-wrap: break-word;
           }
           .invoice-item-table th { background: #eee !important; font-weight: 800; text-transform: uppercase; font-size: 7.5pt; color: #000; }
@@ -427,8 +429,8 @@ export default function InvoiceDetailPage() {
           .spacer-row td { height: 20px; border-top: none; border-bottom: none; }
           .total-row td { background: #eee !important; border: 1px solid #000 !important; }
           
-          .tax-table { width: 100%; border-collapse: collapse; margin-top: 4px; border: 1px solid #000; }
-          .tax-table th, .tax-table td { border: 1px solid #000; padding: 2px 4px; font-size: 7.5pt; color: #000; }
+          .tax-table { width: 100%; border-collapse: collapse; margin-top: 4px; border: 1px solid #000; table-layout: auto; }
+          .tax-table th, .tax-table td { border: 1px solid #000; padding: 2px 4px; font-size: 7.5pt; color: #000; min-width: 40px; }
           .tax-table th { background: #eee !important; font-weight: 700; }
         }
 
@@ -452,11 +454,11 @@ export default function InvoiceDetailPage() {
           .business-main-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; }
           
           .invoice-item-table { width:100%; border-collapse: collapse; table-layout: fixed; }
-          .invoice-item-table th, .invoice-item-table td { border: 1px solid #e2e8f0; padding: 10px; font-size: 0.9rem; word-wrap: break-word; }
-          .invoice-item-table th { background: #f8fafc; font-weight: 700; color: #334155; }
+          .invoice-item-table th, .invoice-item-table td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 0.85rem; word-wrap: break-word; }
+          .invoice-item-table th { background: #f8fafc; font-weight: 700; color: #334155; font-size: 0.8rem; }
           
-          .tax-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
-          .tax-table th, .tax-table td { border: 1px solid #e2e8f0; padding: 6px; font-size: 0.8rem; word-wrap: break-word; }
+          .tax-table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: auto; }
+          .tax-table th, .tax-table td { border: 1px solid #e2e8f0; padding: 6px; font-size: 0.8rem; word-wrap: break-word; min-width: 50px; }
           .math-summary-line { background: #f8fafc; border-radius: 6px; padding: 8px 12px !important; }
         }
 
