@@ -248,10 +248,6 @@ export default function NewSalePage() {
                         <option value="">— Select —</option>
                         {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
                       </select>
-                      {item.product_name && (
-                        <input className="form-input" style={{ marginTop:4, fontSize:'0.8rem' }} value={item.product_name}
-                          onChange={e => updateItem(item._key, 'product_name', e.target.value)} />
-                      )}
                     </div>
                     <div className="form-group" style={{ flex:'0 0 80px' }}>
                       <label className="form-label">Qty</label>
@@ -294,6 +290,15 @@ export default function NewSalePage() {
                       </button>
                     )}
                   </div>
+                  
+                  {/* Custom Description Row below the grid */}
+                  {item.product_name && (
+                    <div style={{ marginTop: 'var(--space-3)' }}>
+                      <input className="form-input" style={{ fontSize: '0.8rem', background: 'transparent', padding: '6px 12px', border: '1px solid var(--border-subtle)' }} placeholder="Custom Description (Prints on Invoice) - Optional" value={item.product_name}
+                        onChange={e => updateItem(item._key, 'product_name', e.target.value)} />
+                    </div>
+                  )}
+
                   <div style={{ display:'flex', gap:'var(--space-4)', marginTop:'var(--space-2)', fontSize:'0.72rem', color:'var(--text-muted)', flexWrap:'wrap' }}>
                     <span>Taxable: {formatINR(item.taxable_amount)}</span>
                     {isInterState ? <span>IGST ({item.igst_rate}%): {formatINR(item.igst_amount)}</span>
