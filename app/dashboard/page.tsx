@@ -209,15 +209,15 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    { label: 'Sale Revenue', value: formatINR(stats.totalRevenue), icon: 'TrendUp' as const, color: '#10b981', sub: `${stats.totalInvoices} sales` },
-    { label: 'COGS', value: formatINR(stats.totalCOGS), icon: 'Purchases' as const, color: '#06b6d4', sub: 'Cost of goods sold' },
-    { label: 'Gross Profit', value: formatINR(stats.grossProfit), icon: 'BarChart' as const, color: '#6366f1', sub: 'Revenue - COGS' },
-    { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'Gross - Expenses' },
-    { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899', sub: 'Fixed & Variable' },
-    { label: 'Tax Liability', value: formatINR(stats.gstLiability), icon: 'FileText' as const, color: '#f59e0b', sub: `ITC: ${formatINR(stats.totalPurchaseGST)}` },
-    { label: 'Receivables', value: formatINR(stats.unpaidSales), icon: 'AlertTriangle' as const, color: '#fb7185', sub: 'Unpaid sales' },
-    { label: 'Payables', value: formatINR(stats.unpaidPurchases), icon: 'Suppliers' as const, color: '#94a3b8', sub: 'Unpaid purchases' },
-    { label: 'Inventory Spent', value: formatINR(stats.totalPurchases), icon: 'Package' as const, color: '#14b8a6', sub: 'Total procurement' },
+    { label: 'Sale Revenue', value: formatINR(stats.totalRevenue), icon: 'TrendUp' as const, color: '#10b981', sub: `${stats.totalInvoices} sales`, href: '/sales' },
+    { label: 'COGS', value: formatINR(stats.totalCOGS), icon: 'Purchases' as const, color: '#06b6d4', sub: 'Cost of goods sold', href: '/purchases' },
+    { label: 'Gross Profit', value: formatINR(stats.grossProfit), icon: 'BarChart' as const, color: '#6366f1', sub: 'Revenue - COGS', href: '' },
+    { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'Gross - Expenses', href: '' },
+    { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899', sub: 'Fixed & Variable', href: '/expenses' },
+    { label: 'Tax Liability', value: formatINR(stats.gstLiability), icon: 'FileText' as const, color: '#f59e0b', sub: `ITC: ${formatINR(stats.totalPurchaseGST)}`, href: '/reports' },
+    { label: 'Receivables', value: formatINR(stats.unpaidSales), icon: 'AlertTriangle' as const, color: '#fb7185', sub: 'Unpaid sales', href: '/sales?filter=unpaid' },
+    { label: 'Payables', value: formatINR(stats.unpaidPurchases), icon: 'Suppliers' as const, color: '#94a3b8', sub: 'Unpaid purchases', href: '/purchases?filter=unpaid' },
+    { label: 'Inventory Spent', value: formatINR(stats.totalPurchases), icon: 'Package' as const, color: '#14b8a6', sub: 'Total procurement', href: '/purchases' },
   ]
 
   if (loading) return (
@@ -265,8 +265,8 @@ export default function DashboardPage() {
       <div className="grid grid-3 gap-4" style={{ marginBottom: 'var(--space-6)' }}>
         {statCards.map((s, i) => {
           const IconComp = Icons[s.icon]
-          return (
-            <div key={i} className="stat-card" style={{ '--accent-color': s.color } as React.CSSProperties}>
+          const card = (
+            <div key={i} className="stat-card" style={{ '--accent-color': s.color, cursor: s.href ? 'pointer' : 'default' } as React.CSSProperties}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div className="stat-label">{s.label}</div>
                 <div className="stat-icon" style={{ background: `${s.color}1a` }}>
@@ -278,6 +278,7 @@ export default function DashboardPage() {
               <div className="stat-progress-bg"><div className="stat-progress-bar" style={{ width: '40%', background: s.color }} /></div>
             </div>
           )
+          return s.href ? <Link key={i} href={s.href} style={{ textDecoration: 'none', color: 'inherit' }}>{card}</Link> : card
         })}
       </div>
 

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatINR } from '@/lib/gst'
 import { format } from 'date-fns'
@@ -9,10 +10,11 @@ import type { Invoice } from '@/lib/types'
 
 export default function SalesPage() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('filter') || 'all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [stats, setStats] = useState({ total: 0, paid: 0, unpaid: 0, gst: 0 })
