@@ -132,6 +132,7 @@ export default function NewSalePage() {
       amount_paid: parseFloat(form.amount_paid) || (form.payment_status === 'paid' ? totals.grandTotal : 0),
       payment_status: form.payment_status, payment_method: form.payment_method,
       notes: form.notes, location_id: form.location_id || null,
+      status: 'active'
     }).select().single()
     if (error) { alert(error.message); setLoading(false); return }
     await supabase.from('invoice_items').insert(items.map(({ _key, priceMode, enteredPrice, ...item }) => ({ ...item, invoice_id: invoice.id })))

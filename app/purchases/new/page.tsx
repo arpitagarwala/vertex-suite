@@ -112,6 +112,7 @@ export default function NewPurchasePage() {
       total_gst: totals.totalGST, grand_total: totals.grandTotal,
       amount_paid: parseFloat(form.amount_paid) || (form.payment_status === 'paid' ? totals.grandTotal : 0),
       payment_status: form.payment_status, location_id: form.location_id || null, notes: form.notes,
+      status: 'active'
     }).select().single()
 
     if (error) { alert(error.message); setLoading(false); return }
