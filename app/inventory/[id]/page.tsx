@@ -27,7 +27,7 @@ export default function InventoryDetailPage() {
     const [stockRes, movementsRes, historyRes] = await Promise.all([
       supabase.from('stock_summary').select('*, location:locations(name)').eq('product_id', id),
       supabase.from('stock_ledger').select('*, location:locations(name)').eq('product_id', id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('invoice_items').select('*, invoice:invoices!inner!invoice_id(*)').eq('invoice.status', 'active').eq('product_id', id).order('created_at', { ascending: false })
+      supabase.from('invoice_items').select('*, invoice:invoices!invoice_id(*)').eq('product_id', id).order('created_at', { ascending: false })
     ])
 
     setStockByLocation(stockRes.data || [])
