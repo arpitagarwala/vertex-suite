@@ -249,13 +249,13 @@ export default function NewSalePage() {
                         {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
                       </select>
                     </div>
-                    <div className="form-group" style={{ flex:'0 0 80px' }}>
+                    <div className="form-group" style={{ flex:'0 0 80px', position: 'relative' }}>
                       <label className="form-label">Qty</label>
                       <input className="form-input" type="number" min="0.001" step="0.001" value={item.quantity}
                         onChange={e => updateItem(item._key, 'quantity', parseFloat(e.target.value) || 0)} />
                       {item.product_id && form.location_id && (() => {
                         const available = stockLevels[item.product_id] || 0
-                        return <div style={{ fontSize:'0.72rem', marginTop:2, color: item.quantity > available ? 'var(--brand-danger)' : 'var(--text-muted)' }}>Stock: {available}</div>
+                        return <div style={{ position: 'absolute', top: '100%', left: 0, fontSize:'0.72rem', marginTop:2, color: item.quantity > available ? 'var(--brand-danger)' : 'var(--text-muted)' }}>Stock: {available}</div>
                       })()}
                     </div>
                     <div className="form-group" style={{ flex:'0 0 100px' }}>
@@ -281,7 +281,7 @@ export default function NewSalePage() {
                     </div>
                     <div style={{ flex:'0 0 90px', display:'flex', flexDirection:'column', gap:4 }}>
                       <span className="form-label">Total</span>
-                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)', color:'var(--brand-primary-light)', padding:'10px 0', fontSize:'0.9rem' }}>{formatINR(item.total_amount)}</div>
+                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)', color:'var(--brand-primary-light)', height: 38, display: 'flex', alignItems: 'center', fontSize:'0.9rem' }}>{formatINR(item.total_amount)}</div>
                     </div>
                     {items.length > 1 && (
                       <button type="button" className="btn btn-ghost btn-sm" style={{ color:'var(--brand-danger)', alignSelf:'flex-end', marginBottom:4 }}

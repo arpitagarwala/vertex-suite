@@ -262,7 +262,7 @@ export default function NewPurchasePage() {
                     </div>
                   </div>
                   {/* Row 2: Price mode + amount */}
-                  <div className="purchase-item-row" style={{ marginTop:'var(--space-3)', alignItems:'center' }}>
+                  <div className="purchase-item-row" style={{ marginTop:'var(--space-3)', alignItems:'flex-end' }}>
                     <div className="form-group" style={{ flex:'1 1 120px' }}>
                       <label className="form-label">Price Mode</label>
                       <div style={{ display:'flex', gap:4 }}>
@@ -279,10 +279,10 @@ export default function NewPurchasePage() {
                     </div>
                     <div style={{ flex:'1 1 100px', display:'flex', flexDirection:'column', gap:4 }}>
                       <span className="form-label">Total</span>
-                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)', color:'var(--brand-primary-light)', padding:'10px 0' }}>{formatINR(item.total_amount)}</div>
+                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)', color:'var(--brand-primary-light)', height: 38, display: 'flex', alignItems: 'center' }}>{formatINR(item.total_amount)}</div>
                     </div>
                     {items.length > 1 && (
-                      <button type="button" className="btn btn-ghost btn-sm" style={{ color:'var(--brand-danger)', marginTop:20 }} onClick={() => setItems(p=>p.filter(i=>i._key!==item._key))}>
+                      <button type="button" className="btn btn-ghost btn-sm" style={{ color:'var(--brand-danger)', alignSelf:'flex-end', marginBottom: 4 }} onClick={() => setItems(p=>p.filter(i=>i._key!==item._key))}>
                         <Icons.Trash size={15} />
                       </button>
                     )}
