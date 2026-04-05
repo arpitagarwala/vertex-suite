@@ -20,32 +20,41 @@ export default function InventoryDetailPage() {
   useEffect(() => { load() }, [id])
 
   async function load() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
     const { data: prod } = await supabase.from('products').select('*, category:categories(name)').eq('id', id).single()
     if (!prod) { router.push('/inventory'); return }
     setProduct(prod)
 
-    const [stockRes, movementsRes, itemsRes] = await Promise.all([
+    const [stockRes, movementsRes] = await Promise.all([
       supabase.from('stock_summary').select('*, location:locations(name)').eq('product_id', id),
       supabase.from('stock_ledger').select('*, location:locations(name)').eq('product_id', id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('invoice_items').select('*').eq('product_id', id).order('created_at', { ascending: false })
     ])
-
     setStockByLocation(stockRes.data || [])
     setRecentMovements(movementsRes.data || [])
 
-    // Fetch corresponding invoices separately to avoid broken join syntax
-    const items = itemsRes.data || []
-    if (items.length > 0) {
-      const invoiceIds = [...new Set(items.map((i: any) => i.invoice_id).filter(Boolean))]
-      const { data: invoices } = await supabase
-        .from('invoices')
-        .select('id, invoice_type, invoice_date, customer_name, invoice_number')
-        .in('id', invoiceIds)
+    // Fetch invoices for this user — required to satisfy RLS on invoice_items (which has no user_id)
+    const { data: userInvoices } = await supabase
+      .from('invoices')
+      .select('id, invoice_type, invoice_date, customer_name, invoice_number')
+      .eq('user_id', user.id)
+      .in('invoice_type', ['sale', 'purchase'])
+
+    if (userInvoices && userInvoices.length > 0) {
+      const invoiceIds = userInvoices.map((inv: any) => inv.id)
+
+      // Now fetch invoice_items for this product within those invoices — RLS satisfied via invoice_id list
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('product_id', id)
+        .in('invoice_id', invoiceIds)
 
       const invoiceMap: Record<string, any> = {}
-      invoices?.forEach(inv => { invoiceMap[inv.id] = inv })
+      userInvoices.forEach((inv: any) => { invoiceMap[inv.id] = inv })
 
-      const enriched = items.map((item: any) => ({
+      const enriched = (items || []).map((item: any) => ({
         ...item,
         invoice: invoiceMap[item.invoice_id] || null
       }))
@@ -53,6 +62,7 @@ export default function InventoryDetailPage() {
     } else {
       setFullHistory([])
     }
+
     setLoading(false)
   }
 
