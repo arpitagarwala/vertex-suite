@@ -24,15 +24,35 @@ export default function InventoryDetailPage() {
     if (!prod) { router.push('/inventory'); return }
     setProduct(prod)
 
-    const [stockRes, movementsRes, historyRes] = await Promise.all([
+    const [stockRes, movementsRes, itemsRes] = await Promise.all([
       supabase.from('stock_summary').select('*, location:locations(name)').eq('product_id', id),
       supabase.from('stock_ledger').select('*, location:locations(name)').eq('product_id', id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('invoice_items').select('*, invoice:invoices!invoice_id(*)').eq('product_id', id).order('created_at', { ascending: false })
+      supabase.from('invoice_items').select('*').eq('product_id', id).order('created_at', { ascending: false })
     ])
 
     setStockByLocation(stockRes.data || [])
     setRecentMovements(movementsRes.data || [])
-    setFullHistory(historyRes.data || [])
+
+    // Fetch corresponding invoices separately to avoid broken join syntax
+    const items = itemsRes.data || []
+    if (items.length > 0) {
+      const invoiceIds = [...new Set(items.map((i: any) => i.invoice_id).filter(Boolean))]
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_type, invoice_date, customer_name, invoice_number')
+        .in('id', invoiceIds)
+
+      const invoiceMap: Record<string, any> = {}
+      invoices?.forEach(inv => { invoiceMap[inv.id] = inv })
+
+      const enriched = items.map((item: any) => ({
+        ...item,
+        invoice: invoiceMap[item.invoice_id] || null
+      }))
+      setFullHistory(enriched)
+    } else {
+      setFullHistory([])
+    }
     setLoading(false)
   }
 
