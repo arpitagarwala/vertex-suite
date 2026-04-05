@@ -141,12 +141,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
 
           <div style={{ flex:1 }} />
-          <Link href="/sales/new">
-            <button className="btn btn-primary btn-sm" id="topbar-new-sale" style={{ display:'flex', alignItems:'center', gap:'var(--space-1)' }}>
-              <Icons.Plus size={15} />
-              New Sale
-            </button>
-          </Link>
         </header>
 
         {/* Page */}
@@ -172,19 +166,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <style>{`
-        @media screen and (max-width: 992px) {
-          .sidebar { transform: translateX(-100%); }
-          .sidebar.open { transform: translateX(0); }
-          .main-content { margin-left: 0 !important; }
-          #menu-toggle { display: flex !important; margin-right: var(--space-1); }
-          .topbar { padding: 0 var(--space-4); }
+        @media (max-width: 768px) {
+          #menu-toggle { display: flex !important; }
         }
-        
-        @media screen and (max-width: 640px) {
-          .profile-warning-banner { max-width: 130px; }
-          .profile-warning-banner span { display: none; }
-        }
-
         .profile-warning-banner {
           display: flex; align-items: center; gap: 6px;
           background: rgba(245,158,11,0.10);
@@ -198,8 +182,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          max-width: 400px;
         }
         .profile-warning-banner:hover { background: rgba(245,158,11,0.18); }
+        @media (max-width: 640px) {
+          .profile-warning-banner span { display: none; }
+        }
       `}</style>
     </div>
   )
