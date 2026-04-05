@@ -47,6 +47,7 @@ export const Icons = {
   Truck: ({ size = 20, color = 'currentColor' }: IconProps) => base(<><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>, size, color),
   BarChart: ({ size = 20, color = 'currentColor' }: IconProps) => base(<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>, size, color),
   ChevronRight: ({ size = 20, color = 'currentColor' }: IconProps) => base(<polyline points="9 18 15 12 9 6"/>, size, color),
+  ChevronLeft: ({ size = 20, color = 'currentColor' }: IconProps) => base(<polyline points="15 18 9 12 15 6"/>, size, color),
   Shield: ({ size = 20, color = 'currentColor' }: IconProps) => base(<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>, size, color),
   PieChart: ({ size = 20, color = 'currentColor' }: IconProps) => base(<><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></>, size, color),
 }
