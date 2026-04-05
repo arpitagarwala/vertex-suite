@@ -60,7 +60,8 @@ function PurchasesPageContent() {
       inv.invoice_number?.toLowerCase().includes(q) ||
       inv.customer_name?.toLowerCase().includes(q) ||
       inv.customer_gstin?.toLowerCase().includes(q)
-    const matchStatus = statusFilter === 'all' || inv.payment_status === statusFilter
+    const matchStatus = statusFilter === 'all' || 
+      (statusFilter === 'pending' ? (inv.payment_status === 'unpaid' || inv.payment_status === 'partial') : inv.payment_status === statusFilter)
     const invDate = inv.invoice_date?.slice(0, 10)
     const matchFrom = !dateFrom || invDate >= dateFrom
     const matchTo = !dateTo || invDate <= dateTo
@@ -122,9 +123,9 @@ function PurchasesPageContent() {
           onChange={e => setDateFrom(e.target.value)} title="From date" />
         <input type="date" className="form-input" style={{ flex:'0 0 150px' }} value={dateTo}
           onChange={e => setDateTo(e.target.value)} title="To date" />
-        <div className="tabs" style={{ display: 'flex', width: '100%', background: 'var(--bg-elevated)', padding: 'var(--space-1)', borderRadius: 'var(--radius-lg)' }}>
-          {[['all','All'],['paid','Paid'],['partial','Partial'],['unpaid','Pending']].map(([v,l]) => (
-            <button key={v} className={`tab ${statusFilter===v?'active':''}`} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2) 0' }} onClick={() => setStatusFilter(v)}>{l}</button>
+        <div className="tabs" style={{ display: 'flex', width: '100%', background: 'var(--bg-elevated)', padding: 'var(--space-1)', borderRadius: 'var(--radius-lg)', overflowX: 'auto' }}>
+          {[['all','All'],['paid','Paid'],['pending','Pending'],['partial','Partial'],['unpaid','Unpaid']].map(([v,l]) => (
+            <button key={v} className={`tab ${statusFilter===v?'active':''}`} style={{ flex: 1, textAlign: 'center', padding: 'var(--space-2) 12px', whiteSpace: 'nowrap' }} onClick={() => setStatusFilter(v)}>{l}</button>
           ))}
         </div>
         {(search || dateFrom || dateTo || statusFilter !== 'all') && (

@@ -215,8 +215,8 @@ export default function DashboardPage() {
     { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'Gross - Expenses', href: '' },
     { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899', sub: 'Fixed & Variable', href: '/expenses' },
     { label: 'Tax Liability', value: formatINR(stats.gstLiability), icon: 'FileText' as const, color: '#f59e0b', sub: `ITC: ${formatINR(stats.totalPurchaseGST)}`, href: '/reports' },
-    { label: 'Receivables', value: formatINR(stats.unpaidSales), icon: 'AlertTriangle' as const, color: '#fb7185', sub: 'Unpaid sales', href: '/sales?filter=unpaid' },
-    { label: 'Payables', value: formatINR(stats.unpaidPurchases), icon: 'Suppliers' as const, color: '#94a3b8', sub: 'Unpaid purchases', href: '/purchases?filter=unpaid' },
+    { label: 'Receivables', value: formatINR(stats.unpaidSales), icon: 'AlertTriangle' as const, color: '#fb7185', sub: 'Unpaid sales', href: '/sales?filter=pending' },
+    { label: 'Payables', value: formatINR(stats.unpaidPurchases), icon: 'Suppliers' as const, color: '#94a3b8', sub: 'Unpaid purchases', href: '/purchases?filter=pending' },
     { label: 'Inventory Spent', value: formatINR(stats.totalPurchases), icon: 'Package' as const, color: '#14b8a6', sub: 'Total procurement', href: '/purchases' },
   ]
 
