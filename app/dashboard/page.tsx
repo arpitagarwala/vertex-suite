@@ -210,7 +210,7 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: 'Sale Revenue', value: formatINR(stats.totalRevenue), icon: 'TrendUp' as const, color: '#10b981', sub: `${stats.totalInvoices} sales`, href: '/sales' },
-    { label: 'COGS', value: formatINR(stats.totalCOGS), icon: 'Purchases' as const, color: '#06b6d4', sub: 'Cost of goods sold', href: '/purchases' },
+    { label: 'COGS', value: formatINR(stats.totalCOGS), icon: 'Purchases' as const, color: '#06b6d4', sub: 'Cost of goods sold', href: '' },
     { label: 'Gross Profit', value: formatINR(stats.grossProfit), icon: 'BarChart' as const, color: '#6366f1', sub: 'Revenue - COGS', href: '' },
     { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'Gross - Expenses', href: '' },
     { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899', sub: 'Fixed & Variable', href: '/expenses' },
