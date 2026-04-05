@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -8,7 +8,11 @@ import { format } from 'date-fns'
 import { Icons } from '@/components/Icons'
 import type { Invoice } from '@/lib/types'
 
-export default function SalesPage() {
+export default function SalesPageWrapper() {
+  return <Suspense><SalesPageContent /></Suspense>
+}
+
+function SalesPageContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
