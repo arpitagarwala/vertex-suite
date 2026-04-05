@@ -1,191 +1,251 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatINR } from '@/lib/gst'
 import { Icons } from '@/components/Icons'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend
+  ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts'
-import { format, subDays, subMonths, subYears, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from 'date-fns'
+import { 
+  format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, 
+  startOfYear, endOfYear, isWithinInterval, parseISO, eachDayOfInterval,
+  subMonths, eachMonthOfInterval
+} from 'date-fns'
 
-type RangeType = '1M' | '6M' | '1Y' | 'custom'
-
-const QUICK_ACTIONS = [
-  { href: '/sales/new', icon: 'Sales' as const, label: 'New Invoice', color: '#6366f1' },
-  { href: '/purchases/new', icon: 'Purchases' as const, label: 'Log Purchase', color: '#06b6d4' },
-  { href: '/inventory/add', icon: 'Package' as const, label: 'Add Product', color: '#10b981' },
-  { href: '/customers/add', icon: 'Customers' as const, label: 'Add Customer', color: '#f59e0b' },
-  { href: '/suppliers', icon: 'Suppliers' as const, label: 'Suppliers', color: '#8b5cf6' },
-  { href: '/expenses/add', icon: 'Expenses' as const, label: 'Log Expense', color: '#ec4899' },
-  { href: '/reports', icon: 'Reports' as const, label: 'GST Report', color: '#14b8a6' },
-  { href: '/settings', icon: 'Settings' as const, label: 'Settings', color: '#94a3b8' },
-]
+type RangeType = 'today' | 'this_month' | 'this_quarter' | 'this_fy' | 'custom'
 
 export default function DashboardPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    totalRevenue: 0, totalGST: 0, netProfit: 0, totalPurchases: 0,
-    totalProducts: 0, lowStockCount: 0, totalCustomers: 0,
-    unpaidAmount: 0, totalInvoices: 0
+    totalRevenue: 0, 
+    totalGST: 0, 
+    grossProfit: 0,
+    netProfit: 0, 
+    totalPurchases: 0,
+    totalExpenses: 0,
+    totalProducts: 0, 
+    lowStockCount: 0, 
+    totalCustomers: 0,
+    unpaidSales: 0,
+    unpaidPurchases: 0,
+    totalInvoices: 0,
+    gstLiability: 0
   })
-  const [revenueData, setRevenueData] = useState<{ date: string; revenue: number }[]>([])
+  
+  const [revenueData, setRevenueData] = useState<any[]>([])
+  const [categoryData, setCategoryData] = useState<any[]>([])
   const [paymentBreakdown, setPaymentBreakdown] = useState<{ name: string; value: number }[]>([])
   const [businessName, setBusinessName] = useState('My Business')
   const [greeting, setGreeting] = useState('Good morning')
-  const [range, setRange] = useState<RangeType>('1M')
+  const [range, setRange] = useState<RangeType>('this_month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
-  const [allInvoices, setAllInvoices] = useState<any[]>([])
+
+  // Date Range Helper
+  const dateRange = useMemo(() => {
+    const now = new Date()
+    const month = now.getMonth() // 0-indexed
+    const year = now.getFullYear()
+    
+    // Financial Year logic (April to March)
+    const fyStartYear = month >= 3 ? year : year - 1
+    const fyStart = new Date(fyStartYear, 3, 1) // April 1st
+    const fyEnd = new Date(fyStartYear + 1, 2, 31, 23, 59, 59) // March 31st next year
+
+    switch (range) {
+      case 'today':
+        return { start: format(now, 'yyyy-MM-dd'), end: format(now, 'yyyy-MM-dd') }
+      case 'this_month':
+        return { start: format(startOfMonth(now), 'yyyy-MM-dd'), end: format(endOfMonth(now), 'yyyy-MM-dd') }
+      case 'this_quarter':
+        return { start: format(startOfQuarter(now), 'yyyy-MM-dd'), end: format(endOfQuarter(now), 'yyyy-MM-dd') }
+      case 'this_fy':
+        return { start: format(fyStart, 'yyyy-MM-dd'), end: format(fyEnd, 'yyyy-MM-dd') }
+      case 'custom':
+        return { start: customFrom || format(now, 'yyyy-MM-dd'), end: customTo || format(now, 'yyyy-MM-dd') }
+      default:
+        return { start: format(startOfMonth(now), 'yyyy-MM-dd'), end: format(now, 'yyyy-MM-dd') }
+    }
+  }, [range, customFrom, customTo])
 
   useEffect(() => {
     const hr = new Date().getHours()
     setGreeting(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening')
     loadDashboard()
-  }, [])
-
-  useEffect(() => {
-    if (allInvoices.length > 0) buildTrend(allInvoices)
-  }, [range, customFrom, customTo, allInvoices])
+  }, [range, customFrom, customTo])
 
   async function loadDashboard() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: profile }, { data: invoices }, { data: purchases }, { data: expenses }, { data: products }, { data: customers }] = await Promise.all([
+    const { start, end } = dateRange
+
+    const [
+      { data: profile }, 
+      { data: sales }, 
+      { data: purchases }, 
+      { data: expenses }, 
+      { data: products }, 
+      { data: customers },
+      { data: stock }
+    ] = await Promise.all([
       supabase.from('profiles').select('business_name').eq('id', user.id).single(),
-      supabase.from('invoices').select('grand_total,total_gst,amount_paid,payment_status,invoice_date').eq('user_id', user.id).eq('status', 'active').eq('invoice_type', 'sale'),
-      supabase.from('invoices').select('grand_total').eq('user_id', user.id).eq('status', 'active').eq('invoice_type', 'purchase'),
-      supabase.from('expenses').select('amount').eq('user_id', user.id),
-      supabase.from('products').select('id').eq('user_id', user.id).eq('is_active', true),
-      supabase.from('customers').select('id').eq('user_id', user.id),
+      supabase.from('invoices').select('*, items:invoice_items(*)')
+        .eq('user_id', user.id).eq('status', 'active').eq('invoice_type', 'sale')
+        .gte('invoice_date', start).lte('invoice_date', end),
+      supabase.from('invoices').select('*')
+        .eq('user_id', user.id).eq('status', 'active').eq('invoice_type', 'purchase')
+        .gte('invoice_date', start).lte('invoice_date', end),
+      supabase.from('expenses').select('*')
+        .eq('user_id', user.id)
+        .gte('expense_date', start).lte('expense_date', end),
+      supabase.from('products').select('*').eq('user_id', user.id).eq('is_active', true),
+      supabase.from('customers').select('*').eq('user_id', user.id),
+      supabase.from('stock_summary').select('product_id, current_stock').eq('user_id', user.id)
     ])
 
     if (profile?.business_name) setBusinessName(profile.business_name)
 
-    const list = invoices || []
-    setAllInvoices(list)
-    const totalRevenue = list.reduce((s, i) => s + (i.grand_total || 0), 0)
-    const totalGST = list.reduce((s, i) => s + (i.total_gst || 0), 0)
-    const totalExpenses = expenses?.reduce((s, e) => s + (e.amount || 0), 0) || 0
-    const totalPurchases = purchases?.reduce((s, p) => s + (p.grand_total || 0), 0) || 0
-    const unpaidAmount = list.filter(i => i.payment_status !== 'paid').reduce((s, i) => s + ((i.grand_total || 0) - (i.amount_paid || 0)), 0)
+    const salesList = sales || []
+    const purchaseList = purchases || []
+    const expenseList = expenses || []
+    const productList = products || []
+
+    const totalRevenue = salesList.reduce((s, i) => s + (i.grand_total || 0), 0)
+    const totalSaleTaxable = salesList.reduce((s, i) => s + (i.taxable_amount || 0), 0)
+    const totalSaleGST = salesList.reduce((s, i) => s + (i.total_gst || 0), 0)
+    
+    const totalPurchaseTotal = purchaseList.reduce((s, i) => s + (i.grand_total || 0), 0)
+    const totalPurchaseTaxable = purchaseList.reduce((s, i) => s + (i.taxable_amount || 0), 0)
+    const totalPurchaseGST = purchaseList.reduce((s, i) => s + (i.total_gst || 0), 0)
+    
+    const totalExpenses = expenseList.reduce((s, e) => s + (e.amount || 0), 0)
+    const unpaidSales = salesList.filter(i => i.payment_status !== 'paid').reduce((s, i) => s + ((i.grand_total || 0) - (i.amount_paid || 0)), 0)
+    const unpaidPurchases = purchaseList.filter(i => i.payment_status !== 'paid').reduce((s, i) => s + ((i.grand_total || 0) - (i.amount_paid || 0)), 0)
+
+    // Profit logic
+    const grossProfit = totalSaleTaxable - totalPurchaseTaxable
+    const netProfit = grossProfit - totalExpenses
+    const gstLiability = totalSaleGST - totalPurchaseGST
+
+    // Low stock count
+    const lowStockCount = productList.filter(p => {
+      const pStock = stock?.filter(s => s.product_id === p.id).reduce((sum, entry) => sum + (entry.current_stock || 0), 0) || 0
+      return pStock <= p.low_stock_alert
+    }).length
 
     setStats({
-      totalRevenue, totalGST, totalPurchases, unpaidAmount,
-      netProfit: totalRevenue - totalExpenses - totalGST,
-      totalProducts: products?.length || 0, lowStockCount: 0,
-      totalCustomers: customers?.length || 0, totalInvoices: list.length
+      totalRevenue, 
+      totalGST: totalSaleGST, 
+      grossProfit,
+      netProfit,
+      totalPurchases: totalPurchaseTotal,
+      totalExpenses,
+      totalProducts: productList.length,
+      lowStockCount,
+      totalCustomers: customers?.length || 0,
+      unpaidSales,
+      unpaidPurchases,
+      totalInvoices: salesList.length,
+      gstLiability
     })
 
     setPaymentBreakdown([
-      { name: 'Paid', value: list.filter(i => i.payment_status === 'paid').length },
-      { name: 'Partial', value: list.filter(i => i.payment_status === 'partial').length },
-      { name: 'Unpaid', value: list.filter(i => i.payment_status === 'unpaid').length },
+      { name: 'Paid', value: salesList.filter(i => i.payment_status === 'paid').length },
+      { name: 'Partial', value: salesList.filter(i => i.payment_status === 'partial').length },
+      { name: 'Unpaid', value: salesList.filter(i => i.payment_status === 'unpaid').length },
     ])
-    buildTrend(list)
-    setLoading(false)
-  }
 
-  const buildTrend = useCallback((invoices: any[]) => {
-    const now = new Date()
+    // Category distribution from sales
+    const catMap: Record<string, number> = {}
+    salesList.forEach(inv => {
+      inv.items?.forEach((item: any) => {
+        const cat = item.product_id ? 'Product' : 'Other'
+        catMap[cat] = (catMap[cat] || 0) + (item.total_amount || 0)
+      })
+    })
+    setCategoryData(Object.entries(catMap).map(([name, value]) => ({ name, value })))
+
+    // Trend Logic
+    const trendRange = range === 'this_fy' ? 12 : range === 'this_quarter' ? 3 : 1
     let intervals: { label: string; key: string }[] = []
-
-    if (range === '1M') {
-      const days = eachDayOfInterval({ start: subDays(now, 29), end: now })
-      intervals = days.map(d => ({ label: format(d, 'dd MMM'), key: format(d, 'yyyy-MM-dd') }))
-    } else if (range === '6M') {
-      const months = eachMonthOfInterval({ start: subMonths(now, 5), end: now })
-      intervals = months.map(m => ({ label: format(m, 'MMM yy'), key: format(m, 'yyyy-MM') }))
-    } else if (range === '1Y') {
-      const months = eachMonthOfInterval({ start: subYears(now, 1), end: now })
-      intervals = months.map(m => ({ label: format(m, 'MMM yy'), key: format(m, 'yyyy-MM') }))
-    } else if (range === 'custom' && customFrom && customTo) {
-      try {
-        const days = eachDayOfInterval({ start: new Date(customFrom), end: new Date(customTo) })
-        intervals = days.slice(0, 60).map(d => ({ label: format(d, 'dd MMM'), key: format(d, 'yyyy-MM-dd') }))
-      } catch { return }
+    
+    if (trendRange > 1) {
+      const months = eachMonthOfInterval({ start: parseISO(start), end: parseISO(end) })
+      intervals = months.map(m => ({ label: format(m, 'MMM'), key: format(m, 'yyyy-MM') }))
+    } else {
+      const days = eachDayOfInterval({ start: parseISO(start), end: parseISO(end) })
+      intervals = days.map(d => ({ label: format(d, 'd MMM'), key: format(d, 'yyyy-MM-dd') }))
     }
 
     const trend = intervals.map(({ label, key }) => ({
       date: label,
-      revenue: invoices.filter(i => i.invoice_date?.startsWith(key)).reduce((s, i) => s + (i.grand_total || 0), 0)
+      revenue: salesList.filter(i => i.invoice_date?.startsWith(key)).reduce((s, i) => s + (i.grand_total || 0), 0),
+      purchases: purchaseList.filter(i => i.invoice_date?.startsWith(key)).reduce((s, i) => s + (i.grand_total || 0), 0)
     }))
     setRevenueData(trend)
-  }, [range, customFrom, customTo])
+    
+    setLoading(false)
+  }
 
   const statCards = [
-    { label: 'Total Revenue', value: formatINR(stats.totalRevenue), icon: 'TrendUp' as const, color: '#10b981' },
-    { label: 'GST Liability', value: formatINR(stats.totalGST), icon: 'FileText' as const, color: '#6366f1', sub: 'Keep aside' },
-    { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'BarChart' as const, color: '#06b6d4' },
-    { label: 'Unpaid Bills', value: formatINR(stats.unpaidAmount), icon: 'AlertTriangle' as const, color: '#f59e0b', sub: `${stats.totalInvoices} invoices` },
-    { label: 'Products', value: stats.totalProducts.toString(), icon: 'Package' as const, color: '#8b5cf6', sub: `${stats.lowStockCount} low stock` },
-    { label: 'Customers', value: stats.totalCustomers.toString(), icon: 'Customers' as const, color: '#ec4899' },
+    { label: 'Sale Revenue', value: formatINR(stats.totalRevenue), icon: 'TrendUp' as const, color: '#10b981', sub: `${stats.totalInvoices} sales` },
+    { label: 'Purchases', value: formatINR(stats.totalPurchases), icon: 'Purchases' as const, color: '#06b6d4' },
+    { label: 'Gross Profit', value: formatINR(stats.grossProfit), icon: 'BarChart' as const, color: '#6366f1', sub: 'Revenue - Purchases' },
+    { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'After expenses' },
+    { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899' },
+    { label: 'Tax Liability', value: formatINR(stats.gstLiability), icon: 'FileText' as const, color: '#f59e0b', sub: `GST: ${formatINR(stats.totalGST)}` },
+    { label: 'Receivables', value: formatINR(stats.unpaidSales), icon: 'AlertTriangle' as const, color: '#fb7185', sub: 'Unpaid sales' },
+    { label: 'Payables', value: formatINR(stats.unpaidPurchases), icon: 'Suppliers' as const, color: '#94a3b8', sub: 'Unpaid purchases' },
+    { label: 'Low Stock', value: stats.lowStockCount.toString(), icon: 'Package' as const, color: stats.lowStockCount > 0 ? '#ef4444' : '#10b981', sub: `${stats.totalProducts} total items` },
   ]
 
   if (loading) return (
-    <div>
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <div className="skeleton" style={{ height: 28, width: 220, marginBottom: 8 }} />
-        <div className="skeleton" style={{ height: 16, width: 160 }} />
-      </div>
+    <div className="animate-fade">
+      <div className="skeleton" style={{ height: 60, width: '100%', marginBottom: 24, borderRadius: 12 }} />
       <div className="grid grid-3 gap-4">
-        {[...Array(6)].map((_, i) => <div key={i} className="skeleton" style={{ height: 110, borderRadius: 'var(--radius-lg)' }} />)}
+        {[...Array(9)].map((_, i) => <div key={i} className="skeleton" style={{ height: 110, borderRadius: 12 }} />)}
       </div>
     </div>
   )
 
   return (
     <div className="animate-fade">
-      <div className="page-header">
-        <div className="page-header-left">
-          <h1 className="page-title">{greeting}</h1>
-          <p className="page-subtitle">{businessName} · {format(new Date(), 'EEEE, d MMMM yyyy')}</p>
-        </div>
-        <div className="page-actions">
-          <Link href="/sales/new"><button className="btn btn-primary" id="dash-new-sale" style={{ display:'flex', alignItems:'center', gap:6 }}><Icons.Plus size={15} /> New Sale</button></Link>
-          <Link href="/inventory/add"><button className="btn btn-secondary" id="dash-add-product" style={{ display:'flex', alignItems:'center', gap:6 }}><Icons.Package size={15} /> Add Product</button></Link>
-        </div>
-      </div>
-
-      {/* GST Reserve Alert */}
-      {stats.totalGST > 0 && (
-        <div className="highlight-card" style={{ marginBottom: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-          <Icons.Zap size={22} color="#6366f1" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>GST Reserve Reminder</div>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Keep <strong style={{ color: 'var(--brand-primary-light)' }}>{formatINR(stats.totalGST)}</strong> aside for your GST filing this month.
-            </p>
+      {/* Global Filter Bar */}
+      <div className="dashboard-filter-bar elevated" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="filter-header">
+          <div className="filter-title">
+            <h1 className="page-title">{greeting}</h1>
+            <p className="page-subtitle">{businessName} Analytics</p>
           </div>
-          <Link href="/reports"><button className="btn btn-secondary btn-sm">View Report →</button></Link>
-        </div>
-      )}
-
-      {/* Quick Actions — moved above stats */}
-      <div className="card" style={{ marginBottom: 'var(--space-5)' }}>
-        <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>Quick Actions</h3>
-        <div className="quick-actions-grid">
-          {QUICK_ACTIONS.map((a, i) => {
-            const IconComp = Icons[a.icon]
-            return (
-              <Link key={i} href={a.href}>
-                <div className="quick-action-card">
-                  <div className="quick-action-icon" style={{ background: `${a.color}1a`, color: a.color }}>
-                    <IconComp size={20} color={a.color} />
-                  </div>
-                  <span>{a.label}</span>
-                </div>
-              </Link>
-            )
-          })}
+          <div className="filter-options">
+            <div className="range-selector">
+              {(['today','this_month','this_quarter','this_fy','custom'] as RangeType[]).map(r => (
+                <button key={r} className={`range-pill ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>
+                  {r.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                </button>
+              ))}
+            </div>
+            {range === 'custom' && (
+              <div className="custom-dates">
+                <input type="date" className="form-input-sm" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+                <span>to</span>
+                <input type="date" className="form-input-sm" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+              </div>
+            )}
+            <div className="action-buttons">
+              <Link href="/sales/new"><button className="btn btn-primary btn-sm">+ Sale</button></Link>
+              <Link href="/expenses/add"><button className="btn btn-secondary btn-sm">+ Expense</button></Link>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Stat Cards */}
+      {/* Primary Analytics Grid */}
       <div className="grid grid-3 gap-4" style={{ marginBottom: 'var(--space-6)' }}>
         {statCards.map((s, i) => {
           const IconComp = Icons[s.icon]
@@ -194,102 +254,155 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div className="stat-label">{s.label}</div>
                 <div className="stat-icon" style={{ background: `${s.color}1a` }}>
-                  <IconComp size={18} color={s.color} />
+                  <IconComp size={16} color={s.color} />
                 </div>
               </div>
-              <div className="stat-value number-ticker">{s.value}</div>
+              <div className="stat-value">{s.value}</div>
               {s.sub && <div className="stat-sub">{s.sub}</div>}
+              <div className="stat-progress-bg"><div className="stat-progress-bar" style={{ width: '40%', background: s.color }} /></div>
             </div>
           )
         })}
       </div>
 
-      {/* Charts Row */}
+      {/* Performance Section */}
       <div className="grid grid-2 gap-6" style={{ marginBottom: 'var(--space-6)' }}>
-        {/* Revenue Chart */}
+        {/* Sales vs Purchases Trend */}
         <div className="card elevated">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Revenue Trend</h3>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-              {(['1M','6M','1Y','custom'] as RangeType[]).map(r => (
-                <button key={r} className={`range-pill ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>
-                  {r === 'custom' ? 'Custom' : r}
-                </button>
-              ))}
-            </div>
+          <div style={{ marginBottom: 'var(--space-5)' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Income & Spending</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Comparison of total sales and purchase history in the selected period</p>
           </div>
-          {range === 'custom' && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-3)' }}>
-              <input type="date" className="form-input" style={{ flex: 1, fontSize: '0.8rem', padding: '6px 10px' }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
-              <input type="date" className="form-input" style={{ flex: 1, fontSize: '0.8rem', padding: '6px 10px' }} value={customTo} onChange={e => setCustomTo(e.target.value)} />
-            </div>
-          )}
-          <div className="chart-container" style={{ height: 200, minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height="100%" debounce={100}>
+          <div className="chart-container" style={{ height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueData}>
                 <defs>
-                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
+                  <linearGradient id="sGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.2} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
+                  <linearGradient id="pGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2} /><stop offset="95%" stopColor="#06b6d4" stopOpacity={0} /></linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="date" tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', borderRadius: 10 }} formatter={(v: any) => [formatINR(Number(v) || 0), 'Revenue']} />
-                <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fill="url(#revGrad)" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={v => `₹${v/1000}k`} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', borderRadius: 12, boxShadow: 'var(--shadow-lg)' }} />
+                <Legend iconType="circle" />
+                <Area type="monotone" name="Sales" dataKey="revenue" stroke="#10b981" strokeWidth={3} fill="url(#sGrad)" />
+                <Area type="monotone" name="Purchases" dataKey="purchases" stroke="#06b6d4" strokeWidth={3} fill="url(#pGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Payment Pie */}
+        {/* Payment Breakdown */}
         <div className="card elevated">
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Payment Status</h3>
+           <div style={{ marginBottom: 'var(--space-5)' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Payment Health</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Distribution of paid vs unpaid sales invoices</p>
           </div>
-          <div className="chart-container" style={{ height: 200, minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height="100%" debounce={100}>
+          <div className="chart-container" style={{ height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={paymentBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" paddingAngle={3}>
-                  {paymentBreakdown.map((_, i) => <Cell key={i} fill={['#10b981','#f59e0b','#ef4444'][i]} />)}
+                <Pie data={paymentBreakdown} cx="50%" cy="50%" innerRadius={65} outerRadius={90} dataKey="value" paddingAngle={4}>
+                  {paymentBreakdown.map((_, i) => <Cell key={i} fill={['#10b981','#f59e0b','#ef4444'][i]} stroke="none" />)}
                 </Pie>
-                <Legend iconType="circle" iconSize={8} formatter={(val) => <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{val}</span>} />
-                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)', borderRadius: 10 }} />
+                <Tooltip contentStyle={{ borderRadius: 12 }} />
+                <Legend iconType="circle" verticalAlign="bottom" />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
+      {/* Secondary Row */}
+      <div className="grid grid-3 gap-6">
+        {/* Quick Links */}
+        <div className="card" style={{ gridColumn: 'span 2' }}>
+           <h3 className="section-title">Quick Actions</h3>
+           <div className="quick-actions-flex">
+              {[
+                { href: '/sales/new', icon: 'Plus', label: 'Sale', color:'#10b981' },
+                { href: '/purchases/new', icon: 'Purchases', label: 'Purchase', color:'#06b6d4' },
+                { href: '/inventory/add', icon: 'Package', label: 'Product', color:'#6366f1' },
+                { href: '/expenses/add', icon: 'Expenses', label: 'Expense', color:'#ec4899' },
+                { href: '/customers/add', icon: 'Customers', label: 'Customer', color:'#3b82f6' },
+                { href: '/reports', icon: 'Reports', label: 'Reports', color:'#14b8a6' },
+              ].map((a, i) => {
+                const IconComp = Icons[a.icon as keyof typeof Icons]
+                return (
+                  <Link href={a.href} key={i}>
+                    <div className="action-tile">
+                      <div className="action-tile-icon" style={{ background: `${a.color}1a`, color: a.color }}>
+                        <IconComp size={22} />
+                      </div>
+                      <span className="action-tile-label">{a.label}</span>
+                    </div>
+                  </Link>
+                )
+              })}
+           </div>
+        </div>
+
+        {/* Total Stats summary */}
+        <div className="card">
+           <h3 className="section-title">Global Summary</h3>
+           <div style={{ display:'flex', flexDirection:'column', gap: 16 }}>
+              {[
+                { label: 'Active Products', val: stats.totalProducts, icon: 'Package' },
+                { label: 'Customers Count', val: stats.totalCustomers, icon: 'Customers' },
+                { label: 'Invoices Total', val: stats.totalInvoices, icon: 'FileText' },
+              ].map((item, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap: 12 }}>
+                   <div style={{ width: 36, height:36, borderRadius:8, background:'var(--bg-elevated)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <Icons.ChevronRight size={16} color="var(--text-muted)" />
+                   </div>
+                   <div style={{ flex: 1 }}>
+                      <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{item.label}</div>
+                      <div style={{ fontWeight:700 }}>{item.val}</div>
+                   </div>
+                </div>
+              ))}
+           </div>
+        </div>
+      </div>
+
       <style>{`
+        .dashboard-filter-bar {
+          background: var(--bg-card); padding: var(--space-5); border-radius: 16px; border: 1px solid var(--border-subtle);
+        }
+        .filter-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4); }
+        .filter-options { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+        .range-selector { display: flex; background: var(--bg-elevated); padding: 4px; border-radius: 12px; }
+        .range-pill { border: none; background: transparent; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .range-pill.active { background: var(--bg-card); color: var(--brand-primary-light); box-shadow: var(--shadow-sm); }
+        .custom-dates { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
+        .form-input-sm { background: var(--bg-elevated); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; }
+        
         .grid-3 { grid-template-columns: repeat(3, 1fr); }
-        .quick-actions-grid {
-          display: grid;
-          grid-template-columns: repeat(8, 1fr);
-          gap: var(--space-3);
+        .stat-card {
+          background: var(--bg-card); padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border-subtle); position: relative; overflow: hidden;
+          transition: transform 0.2s, box-shadow 0.2s;
         }
-        .quick-action-card {
-          display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--space-2);
-          padding: var(--space-3) var(--space-2);
-          height: 100%;
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-lg);
-          text-align: center;
-          font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);
-          cursor: pointer;
-          transition: all var(--transition-fast);
-        }
-        .quick-action-card:hover { background: var(--bg-card-hover); border-color: var(--border-brand); color: var(--text-primary); transform: translateY(-2px); box-shadow: var(--shadow-md); }
-        .quick-action-icon { width: 38px; height: 38px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; }
-        @media (max-width: 1024px) { .quick-actions-grid { grid-template-columns: repeat(4, 1fr); } }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--accent-color); }
+        .stat-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 1.25rem; font-weight: 800; margin: 8px 0; font-family: var(--font-mono); color: var(--text-primary); }
+        .stat-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+        .stat-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .stat-progress-bg { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: rgba(0,0,0,0.05); }
+        .stat-progress-bar { height: 100%; opacity: 0.4; border-radius: 0 2px 2px 0; }
+        
+        .section-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 20px; }
+        .quick-actions-flex { display: flex; gap: 16px; flex-wrap: wrap; }
+        .action-tile { display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; transition: 0.2s; }
+        .action-tile:hover { transform: scale(1.05); }
+        .action-tile-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+        .action-tile-label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
+
+        @media (max-width: 1024px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
-          .grid-3 { grid-template-columns: repeat(2, 1fr); }
-          .quick-actions-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        @media (max-width: 480px) {
-          .quick-actions-grid { grid-template-columns: repeat(4, 1fr); }
+          .grid-3 { grid-template-columns: 1fr; }
+          .filter-header { flex-direction: column; align-items: flex-start; }
+          .filter-options { width: 100%; }
+          .range-selector { width: 100%; overflow-x: auto; }
+          .grid-2 { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>
