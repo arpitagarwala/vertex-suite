@@ -22,7 +22,7 @@ const defaultItem = (): LineItem => ({
 
 const defaultForm = {
   customer_id: '', customer_name: '', customer_gstin: '',
-  customer_state_code: '', supply_type: 'intrastate',
+  customer_state_code: '', customer_phone: '', customer_address: '', supply_type: 'intrastate',
   invoice_date: new Date().toISOString().split('T')[0],
   payment_method: 'cash', payment_status: 'paid', amount_paid: '', notes: '', location_id: '',
 }
@@ -96,10 +96,18 @@ export default function NewSalePage() {
 
   function selectCustomer(id: string) {
     const c = customers.find(c => c.id === id)
-    if (!c) { setForm(f => ({ ...f, customer_id: '', customer_name: '', customer_gstin: '', customer_state_code: '', supply_type: 'intrastate' })); return }
+    if (!c) { setForm(f => ({ ...f, customer_id: '', customer_name: '', customer_gstin: '', customer_state_code: '', customer_phone: '', customer_address: '', supply_type: 'intrastate' })); return }
     const isInter = c.state_code && c.state_code !== userProfile.state_code ? 'interstate' : 'intrastate'
-    setForm(f => ({ ...f, customer_id: c.id, customer_name: c.name, customer_gstin: c.gstin || '', customer_state_code: c.state_code, supply_type: isInter }))
+    setForm(f => ({ ...f, customer_id: c.id, customer_name: c.name, customer_gstin: c.gstin || '', customer_state_code: c.state_code, customer_phone: c.phone || '', customer_address: c.address || '', supply_type: isInter }))
     setItems(prev => prev.map(item => calcItem(item, isInter)))
+  }
+
+  function handlePhoneChange(phone: string) {
+    setForm(f => ({ ...f, customer_phone: phone }))
+    if (phone.length >= 10 && !form.customer_id) {
+      const match = customers.find(c => c.phone?.includes(phone) || phone.includes(c.phone))
+      if (match) selectCustomer(match.id)
+    }
   }
 
   const totals = calculateInvoiceTotals(items.map(i => ({ taxableAmount: i.taxable_amount, cgstAmount: i.cgst_amount, sgstAmount: i.sgst_amount, igstAmount: i.igst_amount, totalAmount: i.total_amount })))
@@ -120,10 +128,25 @@ export default function NewSalePage() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    let finalCustomerId = form.customer_id
+    if (!finalCustomerId && form.customer_phone) {
+      const { data: newCust, error: custErr } = await supabase.from('customers').insert({
+        user_id: user.id,
+        name: form.customer_name || 'Walk-in Customer',
+        phone: form.customer_phone,
+        address: form.customer_address,
+        gstin: form.customer_gstin || null,
+        state_code: form.customer_state_code,
+        customer_type: form.customer_gstin ? 'b2b' : 'b2c'
+      }).select().single()
+      if (!custErr && newCust) finalCustomerId = newCust.id
+    }
+
     const { data: numData } = await supabase.rpc('next_invoice_number', { p_user_id: user.id })
     const { data: invoice, error } = await supabase.from('invoices').insert({
       user_id: user.id, invoice_number: numData || `INV-${Date.now()}`, invoice_type: 'sale',
-      customer_id: form.customer_id || null, customer_name: form.customer_name || 'Walk-in Customer',
+      customer_id: finalCustomerId || null, customer_name: form.customer_name || 'Walk-in Customer',
       customer_gstin: form.customer_gstin, customer_state_code: form.customer_state_code,
       supply_type: form.supply_type, invoice_date: form.invoice_date,
       subtotal: totals.subtotal, taxable_amount: totals.taxableAmount,
@@ -177,12 +200,20 @@ export default function NewSalePage() {
                   {customers.filter(c => c.customer_type !== 'vendor').map(c => <option key={c.id} value={c.id}>{c.name}{c.city ? ` — ${c.city}` : ''}</option>)}
                 </select>
               </div>
+              <div className="form-group" style={{ gridColumn:'1/-1' }}>
+                <label className="form-label">Phone</label>
+                <input className="form-input" placeholder="e.g. 9876543210 (Auto-fetches details if matches)" value={form.customer_phone} onChange={e => handlePhoneChange(e.target.value)} />
+              </div>
               {!form.customer_id && (
                 <div className="form-group" style={{ gridColumn:'1/-1' }}>
                   <label className="form-label">Customer Name</label>
                   <input className="form-input" placeholder="Walk-in Customer" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
                 </div>
               )}
+              <div className="form-group" style={{ gridColumn:'1/-1' }}>
+                <label className="form-label">Address</label>
+                <input className="form-input" placeholder="Billing Address..." value={form.customer_address} onChange={e => setForm(f => ({ ...f, customer_address: e.target.value }))} />
+              </div>
               <div className="form-group">
                 <label className="form-label">Invoice Date</label>
                 <input className="form-input" type="date" value={form.invoice_date} onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />

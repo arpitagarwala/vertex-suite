@@ -22,7 +22,7 @@ const defaultItem = (): LineItem => ({
 
 const defaultForm = {
   customer_id: '', customer_name: '', customer_gstin: '',
-  customer_state_code: '', supply_type: 'intrastate',
+  customer_state_code: '', customer_phone: '', customer_address: '', supply_type: 'intrastate',
   invoice_date: new Date().toISOString().split('T')[0],
   payment_status: 'paid', amount_paid: '', notes: '',
   location_id: '', bill_number: ''
@@ -83,10 +83,18 @@ export default function NewPurchasePage() {
 
   function selectSupplier(id: string) {
     const s = suppliers.find(c => c.id === id)
-    if (!s) { setForm(f => ({ ...f, customer_id: '', customer_name: '', customer_gstin: '', customer_state_code: '', supply_type: 'intrastate' })); return }
+    if (!s) { setForm(f => ({ ...f, customer_id: '', customer_name: '', customer_gstin: '', customer_state_code: '', customer_phone: '', customer_address: '', supply_type: 'intrastate' })); return }
     const isInter = s.state_code && s.state_code !== userProfile.state_code ? 'interstate' : 'intrastate'
-    setForm(f => ({ ...f, customer_id: s.id, customer_name: s.name, customer_gstin: s.gstin || '', customer_state_code: s.state_code, supply_type: isInter }))
+    setForm(f => ({ ...f, customer_id: s.id, customer_name: s.name, customer_gstin: s.gstin || '', customer_state_code: s.state_code, customer_phone: s.phone || '', customer_address: s.address || '', supply_type: isInter }))
     setItems(prev => prev.map(item => calcItem(item, isInter)))
+  }
+
+  function handlePhoneChange(phone: string) {
+    setForm(f => ({ ...f, customer_phone: phone }))
+    if (phone.length >= 10 && !form.customer_id) {
+      const match = suppliers.find(c => c.phone?.includes(phone) || phone.includes(c.phone))
+      if (match) selectSupplier(match.id)
+    }
   }
 
   const mappedItems = items.map(i => ({ taxableAmount: i.taxable_amount, cgstAmount: i.cgst_amount, sgstAmount: i.sgst_amount, igstAmount: i.igst_amount, totalAmount: i.total_amount }))
@@ -100,11 +108,25 @@ export default function NewPurchasePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
+    let finalCustomerId = form.customer_id
+    if (!finalCustomerId && form.customer_phone) {
+      const { data: newCust, error: custErr } = await supabase.from('customers').insert({
+        user_id: user.id,
+        name: form.customer_name || 'Walk-in Vendor',
+        phone: form.customer_phone,
+        address: form.customer_address,
+        gstin: form.customer_gstin || null,
+        state_code: form.customer_state_code,
+        customer_type: 'vendor'
+      }).select().single()
+      if (!custErr && newCust) finalCustomerId = newCust.id
+    }
+
     const billNum = form.bill_number || `PUR-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*1000)}`
 
     const { data: invoice, error } = await supabase.from('invoices').insert({
       user_id: user.id, invoice_number: billNum, invoice_type: 'purchase',
-      customer_id: form.customer_id || null, customer_name: form.customer_name || 'Walk-in Vendor',
+      customer_id: finalCustomerId || null, customer_name: form.customer_name || 'Walk-in Vendor',
       customer_gstin: form.customer_gstin, customer_state_code: form.customer_state_code,
       supply_type: form.supply_type, invoice_date: form.invoice_date,
       subtotal: totals.subtotal, taxable_amount: totals.taxableAmount,
@@ -181,12 +203,20 @@ export default function NewPurchasePage() {
                   {suppliers.filter(c => ['vendor','b2b'].includes(c.customer_type)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              <div className="form-group col-span-2">
+                <label className="form-label">Phone</label>
+                <input className="form-input" placeholder="e.g. 9876543210 (Auto-fetches details)" value={form.customer_phone} onChange={e => handlePhoneChange(e.target.value)} />
+              </div>
               {!form.customer_id && (
                 <div className="form-group col-span-2">
                   <label className="form-label">Supplier Name</label>
                   <input className="form-input" placeholder="Vendor name" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
                 </div>
               )}
+              <div className="form-group col-span-4">
+                <label className="form-label">Vendor Address</label>
+                <input className="form-input" placeholder="Billing Address..." value={form.customer_address} onChange={e => setForm(f => ({ ...f, customer_address: e.target.value }))} />
+              </div>
               <div className="form-group">
                 <label className="form-label">Vendor Bill # <span style={{ color:'var(--text-muted)', fontWeight:400 }}>(optional)</span></label>
                 <input className="form-input" placeholder="e.g. INV-001 (auto if empty)" value={form.bill_number} onChange={e => setForm(f => ({ ...f, bill_number: e.target.value }))} />
