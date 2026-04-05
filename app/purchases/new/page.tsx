@@ -119,6 +119,29 @@ export default function NewPurchasePage() {
     const lineItems = items.map(({ _key, priceMode, enteredPrice, ...item }) => ({ ...item, invoice_id: invoice.id }))
     await supabase.from('invoice_items').insert(lineItems)
 
+    // Update Weighted Average Cost (WAC) for each product
+    for (const item of items) {
+      if (!item.product_id) continue
+      
+      // 1. Fetch current total stock and current cost price
+      const [{ data: stockData }, { data: productData }] = await Promise.all([
+        supabase.from('stock_summary').select('current_stock').eq('product_id', item.product_id),
+        supabase.from('products').select('cost_price').eq('id', item.product_id).single()
+      ])
+
+      const currentStock = stockData?.reduce((s, entry) => s + (entry.current_stock || 0), 0) || 0
+      const currentCost = productData?.cost_price || 0
+      const newQty = item.quantity || 0
+      const newUnitPrice = item.unit_price || 0 // This is the taxable amount per unit
+
+      if (currentStock + newQty > 0) {
+        const newWAC = ((currentStock * currentCost) + (newQty * newUnitPrice)) / (currentStock + newQty)
+        
+        // 2. Update product master with the new average cost
+        await supabase.from('products').update({ cost_price: newWAC }).eq('id', item.product_id)
+      }
+    }
+
     const movements = items.filter(i => i.product_id && form.location_id).map(i => ({
       user_id: user.id, product_id: i.product_id, location_id: form.location_id,
       quantity: i.quantity, movement_type: 'purchase', reference_id: invoice.id, reference_type: 'invoice'

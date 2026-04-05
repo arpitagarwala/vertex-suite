@@ -32,7 +32,10 @@ export default function DashboardPage() {
     unpaidSales: 0,
     unpaidPurchases: 0,
     totalInvoices: 0,
-    gstLiability: 0
+    totalPurchaseTaxable: 0,
+    totalPurchaseGST: 0,
+    gstLiability: 0,
+    totalCOGS: 0
   })
   
   const [revenueData, setRevenueData] = useState<any[]>([])
@@ -127,8 +130,18 @@ export default function DashboardPage() {
     const unpaidSales = salesList.filter(i => i.payment_status !== 'paid').reduce((s, i) => s + ((i.grand_total || 0) - (i.amount_paid || 0)), 0)
     const unpaidPurchases = purchaseList.filter(i => i.payment_status !== 'paid').reduce((s, i) => s + ((i.grand_total || 0) - (i.amount_paid || 0)), 0)
 
-    // Profit logic
-    const grossProfit = totalSaleTaxable - totalPurchaseTaxable
+    // COGS Calculation: Sum of (Sale Quantity * Product WAC)
+    let totalCOGS = 0
+    salesList.forEach(sale => {
+      sale.items?.forEach((item: any) => {
+        const product = productList.find(p => p.id === item.product_id)
+        if (product) {
+          totalCOGS += (item.quantity || 0) * (product.cost_price || 0)
+        }
+      })
+    })
+
+    const grossProfit = totalSaleTaxable - totalCOGS
     const netProfit = grossProfit - totalExpenses
     const gstLiability = totalSaleGST - totalPurchaseGST
 
@@ -148,10 +161,13 @@ export default function DashboardPage() {
       totalProducts: productList.length,
       lowStockCount,
       totalCustomers: customers?.length || 0,
+      totalInvoices: salesList.length,
+      totalPurchaseTaxable,
+      totalPurchaseGST,
+      gstLiability,
       unpaidSales,
       unpaidPurchases,
-      totalInvoices: salesList.length,
-      gstLiability
+      totalCOGS
     })
 
     setPaymentBreakdown([
@@ -194,14 +210,14 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: 'Sale Revenue', value: formatINR(stats.totalRevenue), icon: 'TrendUp' as const, color: '#10b981', sub: `${stats.totalInvoices} sales` },
-    { label: 'Purchases', value: formatINR(stats.totalPurchases), icon: 'Purchases' as const, color: '#06b6d4' },
-    { label: 'Gross Profit', value: formatINR(stats.grossProfit), icon: 'BarChart' as const, color: '#6366f1', sub: 'Revenue - Purchases' },
-    { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'After expenses' },
-    { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899' },
-    { label: 'Tax Liability', value: formatINR(stats.gstLiability), icon: 'FileText' as const, color: '#f59e0b', sub: `GST: ${formatINR(stats.totalGST)}` },
+    { label: 'COGS', value: formatINR(stats.totalCOGS), icon: 'Purchases' as const, color: '#06b6d4', sub: 'Cost of goods sold' },
+    { label: 'Gross Profit', value: formatINR(stats.grossProfit), icon: 'BarChart' as const, color: '#6366f1', sub: 'Revenue - COGS' },
+    { label: 'Net Profit', value: formatINR(stats.netProfit), icon: 'Zap' as const, color: '#8b5cf6', sub: 'Gross - Expenses' },
+    { label: 'Total Expenses', value: formatINR(stats.totalExpenses), icon: 'Expenses' as const, color: '#ec4899', sub: 'Fixed & Variable' },
+    { label: 'Tax Liability', value: formatINR(stats.gstLiability), icon: 'FileText' as const, color: '#f59e0b', sub: `ITC: ${formatINR(stats.totalPurchaseGST)}` },
     { label: 'Receivables', value: formatINR(stats.unpaidSales), icon: 'AlertTriangle' as const, color: '#fb7185', sub: 'Unpaid sales' },
     { label: 'Payables', value: formatINR(stats.unpaidPurchases), icon: 'Suppliers' as const, color: '#94a3b8', sub: 'Unpaid purchases' },
-    { label: 'Low Stock', value: stats.lowStockCount.toString(), icon: 'Package' as const, color: stats.lowStockCount > 0 ? '#ef4444' : '#10b981', sub: `${stats.totalProducts} total items` },
+    { label: 'Inventory Spent', value: formatINR(stats.totalPurchases), icon: 'Package' as const, color: '#14b8a6', sub: 'Total procurement' },
   ]
 
   if (loading) return (
