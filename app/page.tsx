@@ -82,8 +82,8 @@ export default function LandingPage() {
             <div style={{ display:'flex', alignItems:'center', gap:8, color:'var(--brand-primary-light)', fontWeight:600, fontSize:'0.875rem', marginBottom:'var(--space-4)' }}>
               <Icons.Shield size={18} /> Enterprise-Grade Security
             </div>
-            <h2 style={{ marginBottom:'var(--space-6)', fontSize:'2.5rem' }}>Your data is your <br/> business. Period.</h2>
-            <p style={{ fontSize:'1.1rem', marginBottom:'var(--space-8)' }}>
+            <h2 style={{ marginBottom:'var(--space-6)', fontSize:'clamp(1.8rem, 5vw, 3rem)' }}>Your data is your <br/> business. Period.</h2>
+            <p style={{ fontSize:'clamp(1rem, 2vw, 1.1rem)', marginBottom:'var(--space-8)' }}>
               We use military-grade AES-256 encryption to protect your sensitive financial records. Your data is backed up daily and accessible only by you.
             </p>
             <ul style={{ display:'grid', gap:'var(--space-4)' }}>

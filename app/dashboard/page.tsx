@@ -390,10 +390,11 @@ export default function DashboardPage() {
           background: var(--bg-card); padding: var(--space-5); border-radius: 16px; border: 1px solid var(--border-subtle);
         }
         .filter-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4); }
-        .filter-options { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+        .filter-options { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
         .range-selector { display: flex; background: var(--bg-elevated); padding: 4px; border-radius: 12px; }
-        .range-pill { border: none; background: transparent; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .range-pill { border: none; background: transparent; padding: 6px 14px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
         .range-pill.active { background: var(--bg-card); color: var(--brand-primary-light); box-shadow: var(--shadow-sm); }
+        .action-buttons-grid { display: flex; gap: var(--space-3); align-items: center; min-width: 240px; }
         .custom-dates { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
         .form-input-sm { background: var(--bg-elevated); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; }
         
@@ -420,10 +421,18 @@ export default function DashboardPage() {
         @media (max-width: 768px) {
           .filter-header { flex-direction: column; align-items: stretch; }
           .filter-options { width: 100%; flex-direction: column; align-items: stretch; }
-          .range-selector { width: 100%; overflow-x: auto; padding: 2px; }
+          .range-selector { width: 100%; display: flex; flex-wrap: wrap; gap: 4px; padding: 2px; }
+          .range-pill { padding: 4px 10px; font-size: 0.72rem; flex: 1 1 auto; text-align: center; }
           .action-buttons-grid { display: flex; gap: 8px; width: 100%; }
+        }
+
+        @media (max-width: 400px) {
+           .dashboard-filter-bar { padding: 12px; }
+           .stat-value { font-size: 1.1rem; }
+           .stat-progress-bar { height: 2px; }
         }
       `}</style>
     </div>
   )
 }
+
