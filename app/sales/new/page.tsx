@@ -63,18 +63,25 @@ export default function NewSalePage() {
   }, [])
 
   useEffect(() => {
-    if (!form.location_id) { setStockLevels({}); return }
+    if (userProfile.enable_cnf && !form.location_id) { setStockLevels({}); return }
     async function loadStock() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase.from('stock_summary').select('product_id, current_stock')
-        .eq('user_id', user.id).eq('location_id', form.location_id)
+      
+      let query = supabase.from('stock_summary').select('product_id, current_stock').eq('user_id', user.id)
+      if (userProfile.enable_cnf) {
+        query = query.eq('location_id', form.location_id)
+      }
+      
+      const { data } = await query
       const stockMap: Record<string, number> = {}
-      data?.forEach(s => { stockMap[s.product_id] = s.current_stock || 0 })
+      data?.forEach(s => { 
+        stockMap[s.product_id] = (stockMap[s.product_id] || 0) + (s.current_stock || 0) 
+      })
       setStockLevels(stockMap)
     }
     loadStock()
-  }, [form.location_id])
+  }, [form.location_id, userProfile.enable_cnf])
 
   function calcItem(item: LineItem, supplyType: string): LineItem {
     const isInterState = supplyType === 'interstate'

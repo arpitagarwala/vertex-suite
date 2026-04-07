@@ -15,6 +15,7 @@ export default function InventoryDetailPage() {
   const [stockByLocation, setStockByLocation] = useState<any[]>([])
   const [recentMovements, setRecentMovements] = useState<any[]>([])
   const [fullHistory, setFullHistory] = useState<any[]>([])
+  const [openingStock, setOpeningStock] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [id])
@@ -33,6 +34,17 @@ export default function InventoryDetailPage() {
     ])
     setStockByLocation(stockRes.data || [])
     setRecentMovements(movementsRes.data || [])
+
+    // Identify Opening Stock (Adjustment with specific note)
+    const { data: openingEntry } = await supabase
+      .from('stock_ledger')
+      .select('quantity')
+      .eq('product_id', id)
+      .eq('movement_type', 'adjustment')
+      .eq('notes', 'Opening stock entry')
+      .single()
+    
+    if (openingEntry) setOpeningStock(openingEntry.quantity)
 
     // Fetch invoices for this user — required to satisfy RLS on invoice_items (which has no user_id)
     const { data: userInvoices } = await supabase
@@ -133,6 +145,7 @@ export default function InventoryDetailPage() {
             ['SKU / Code', product.sku || '—'],
             ['HSN / SAC', product.hsn_code || '—'],
             ['Unit', product.unit || 'pcs'],
+            ['Opening Stock', `${openingStock} ${product.unit}`],
             ['Current Stock', `${totalStock} ${product.unit}`],
             ['Alert Level', `${product.low_stock_alert} ${product.unit}`],
           ].map(([label, val]) => (
