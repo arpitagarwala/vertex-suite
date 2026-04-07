@@ -246,7 +246,11 @@ export default function NewSalePage() {
                     <div className="form-group" style={{ flex:'2 1 180px' }}>
                       <label className="form-label">Product</label>
                       <SearchableSelect
-                        options={products.map(p => ({ id: p.id, name: p.name, sub: `Stock: ${stockLevels[p.id] || 0} ${p.unit}` }))}
+                        options={products.map(p => ({ 
+                          id: p.id, 
+                          name: String(p.name || 'Unnamed Product'), 
+                          sub: !form.location_id ? 'Select location to see stock' : `Available: ${stockLevels[p.id] || 0} ${p.unit || 'unit'}`
+                        }))}
                         value={item.product_id || ''}
                         onChange={(val) => selectProduct(item._key, val)}
                         placeholder="— Search Product —"

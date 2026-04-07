@@ -247,7 +247,7 @@ export default function NewPurchasePage() {
                     <div className="form-group" style={{ flex:'2 1 200px' }}>
                       <label className="form-label">Product</label>
                       <SearchableSelect
-                        options={products.map(p => ({ id: p.id, name: p.name, sub: `Cost: ₹${p.cost_price} | Stock: ${p.unit}` }))}
+                        options={products.map(p => ({ id: p.id, name: p.name, sub: `Last Cost: ₹${p.cost_price || 0} | Unit: ${p.unit || 'unit'}` }))}
                         value={item.product_id || ''}
                         onChange={(val) => selectProduct(item._key, val)}
                         placeholder="— Search Product —"
