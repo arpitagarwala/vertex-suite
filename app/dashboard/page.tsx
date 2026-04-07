@@ -237,7 +237,7 @@ export default function DashboardPage() {
   return (
     <div className="animate-fade">
       {/* Global Filter Bar */}
-      <div className="dashboard-filter-bar elevated" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="card dashboard-filter-bar elevated" style={{ marginBottom: 'var(--space-6)' }}>
         <div className="filter-header">
           <div className="filter-title">
             <h1 className="page-title">{greeting}</h1>
@@ -258,9 +258,9 @@ export default function DashboardPage() {
                 <input type="date" className="form-input-sm" value={customTo} onChange={e => setCustomTo(e.target.value)} />
               </div>
             )}
-            <div className="action-buttons">
-              <Link href="/sales/new"><button className="btn btn-primary btn-sm">+ Sale</button></Link>
-              <Link href="/expenses/add"><button className="btn btn-secondary btn-sm">+ Expense</button></Link>
+            <div className="action-buttons-grid">
+              <Link href="/sales/new" style={{ flex: 1 }}><button className="btn btn-primary btn-sm btn-full">+ Sale</button></Link>
+              <Link href="/expenses/add" style={{ flex: 1 }}><button className="btn btn-secondary btn-sm btn-full">+ Expense</button></Link>
             </div>
           </div>
         </div>
@@ -418,9 +418,10 @@ export default function DashboardPage() {
         .action-tile-label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
 
         @media (max-width: 768px) {
-          .filter-header { flex-direction: column; align-items: flex-start; }
-          .filter-options { width: 100%; }
-          .range-selector { width: 100%; overflow-x: auto; }
+          .filter-header { flex-direction: column; align-items: stretch; }
+          .filter-options { width: 100%; flex-direction: column; align-items: stretch; }
+          .range-selector { width: 100%; overflow-x: auto; padding: 2px; }
+          .action-buttons-grid { display: flex; gap: 8px; width: 100%; }
         }
       `}</style>
     </div>

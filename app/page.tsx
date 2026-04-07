@@ -25,7 +25,7 @@ export default function LandingPage() {
           <div className="animate-slide-up" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'4px 12px', background:'rgba(99, 102, 241, 0.1)', border:'1px solid rgba(99, 102, 241, 0.2)', borderRadius:20, color:'var(--brand-primary-light)', fontSize:'0.8rem', fontWeight:600, marginBottom:'var(--space-6)' }}>
             <Icons.Zap size={14} /> Built for Indian SMBs
           </div>
-          <h1 className="animate-slide-up" style={{ fontSize:'clamp(2.5rem, 8vw, 4rem)', fontWeight:900, lineHeight:1.1, marginBottom:'var(--space-6)', color:'#fff' }}>
+          <h1 className="animate-slide-up" style={{ fontSize:'clamp(2.1rem, 8vw, 4rem)', fontWeight:900, lineHeight:1.1, marginBottom:'var(--space-6)', color:'#fff' }}>
             Smart Business <br/> <span style={{ background:'linear-gradient(to right, var(--brand-primary-light), var(--brand-secondary))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>Management</span> for Everyone
           </h1>
           <p className="animate-slide-up" style={{ fontSize:'1.125rem', color:'var(--text-secondary)', marginBottom:'var(--space-10)', maxWidth:'600px', margin:'0 auto var(--space-10)' }}>
@@ -47,7 +47,7 @@ export default function LandingPage() {
             <p style={{ maxWidth:'500px', margin:'0 auto' }}>Everything you need to run your shop, warehouse, or agency from any device.</p>
           </div>
           
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'var(--space-8)' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'var(--space-8)' }}>
             <div className="card glass animate-fade">
               <div style={{ width:48, height:48, borderRadius:12, background:'rgba(245, 158, 11, 0.1)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'var(--space-6)' }}>
                 <Icons.Inventory size={24} color="var(--brand-accent)" />
@@ -77,7 +77,7 @@ export default function LandingPage() {
 
       {/* Trust & Security */}
       <section style={{ padding:'var(--space-16) 0', position:'relative' }}>
-        <div style={{ maxWidth:'var(--content-max)', margin:'0 auto', padding:'0 var(--space-6)', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'var(--space-16)', alignItems:'center' }}>
+        <div style={{ maxWidth:'var(--content-max)', margin:'0 auto', padding:'0 var(--space-6)', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'var(--space-16)', alignItems:'center' }}>
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:8, color:'var(--brand-primary-light)', fontWeight:600, fontSize:'0.875rem', marginBottom:'var(--space-4)' }}>
               <Icons.Shield size={18} /> Enterprise-Grade Security
