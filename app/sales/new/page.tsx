@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { calculateItemGST, calculateInvoiceTotals, formatINR } from '@/lib/gst'
 import { useDraft } from '@/lib/useDraft'
 import { Icons } from '@/components/Icons'
+import { SearchableSelect } from '@/components/SearchableSelect'
 import type { Product, Customer, Location, InvoiceItem } from '@/lib/types'
 
 interface LineItem extends InvoiceItem { _key: string; priceMode: 'exclusive' | 'inclusive'; enteredPrice: number }
@@ -244,10 +245,12 @@ export default function NewSalePage() {
                   <div className="sale-item-grid">
                     <div className="form-group" style={{ flex:'2 1 180px' }}>
                       <label className="form-label">Product</label>
-                      <select className="form-select" value={item.product_id || ''} onChange={e => selectProduct(item._key, e.target.value)}>
-                        <option value="">— Select —</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
-                      </select>
+                      <SearchableSelect
+                        options={products.map(p => ({ id: p.id, name: p.name, sub: `Stock: ${stockLevels[p.id] || 0} ${p.unit}` }))}
+                        value={item.product_id || ''}
+                        onChange={(val) => selectProduct(item._key, val)}
+                        placeholder="— Search Product —"
+                      />
                     </div>
                     <div className="form-group" style={{ flex:'0 0 80px', position: 'relative' }}>
                       <label className="form-label">Qty</label>
