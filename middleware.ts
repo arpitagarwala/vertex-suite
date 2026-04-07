@@ -54,7 +54,18 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Redirect to dashboard if logged in and trying to access landing/login
+  if (user && (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/login')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Redirect to landing if not logged in and trying to access protected routes
+  const protectedRoutes = ['/dashboard', '/inventory', '/sales', '/purchases', '/customers', '/suppliers', '/expenses', '/reports', '/settings']
+  if (!user && protectedRoutes.some(path => request.nextUrl.pathname.startsWith(path))) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
   return response
 }
