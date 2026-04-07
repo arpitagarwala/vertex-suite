@@ -191,30 +191,30 @@ export default function NewPurchasePage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ display:'grid', gap:'var(--space-5)' }}>
+        <div className="grid grid-1 gap-5">
 
           {/* Supplier & Meta */}
           <div className="card">
             <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Supplier Details</h3>
-            <div className="purchase-form-grid">
-              <div className="form-group col-span-2">
+            <div className="grid grid-1 md:grid-2 gap-4">
+              <div className="form-group md:col-span-2">
                 <label className="form-label">Supplier / Vendor</label>
                 <select className="form-select" value={form.customer_id} onChange={e => selectSupplier(e.target.value)}>
                   <option value="">Walk-in Vendor</option>
                   {suppliers.filter(c => ['vendor','b2b'].includes(c.customer_type)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              <div className="form-group col-span-2">
+              <div className="form-group md:col-span-2">
                 <label className="form-label">Phone</label>
                 <input className="form-input" placeholder="e.g. 9876543210 (Auto-fetches details)" value={form.customer_phone} onChange={e => handlePhoneChange(e.target.value)} />
               </div>
               {!form.customer_id && (
-                <div className="form-group col-span-2">
+                <div className="form-group md:col-span-2">
                   <label className="form-label">Supplier Name</label>
                   <input className="form-input" placeholder="Vendor name" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
                 </div>
               )}
-              <div className="form-group col-span-4">
+              <div className="form-group md:col-span-4">
                 <label className="form-label">Vendor Address</label>
                 <input className="form-input" placeholder="Billing Address..." value={form.customer_address} onChange={e => setForm(f => ({ ...f, customer_address: e.target.value }))} />
               </div>
@@ -227,7 +227,7 @@ export default function NewPurchasePage() {
                 <input className="form-input" type="date" required value={form.invoice_date} onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />
               </div>
               {userProfile.enable_cnf && (
-                <div className="form-group col-span-2">
+                <div className="form-group md:col-span-2">
                   <label className="form-label">Receive at Location</label>
                   <select className="form-select" value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
                     <option value="">— No Location —</option>
@@ -245,8 +245,8 @@ export default function NewPurchasePage() {
               {items.map((item) => (
                 <div key={item._key} style={{ background:'var(--bg-elevated)', borderRadius:'var(--radius-md)', padding:'var(--space-4)', border:'1px solid var(--border-subtle)' }}>
                   {/* Row 1: Product + Price Mode */}
-                  <div className="purchase-item-row">
-                    <div className="form-group" style={{ flex:'2 1 200px' }}>
+                  <div className="sale-item-grid">
+                    <div className="form-group">
                       <label className="form-label">Product</label>
                       <SearchableSelect
                         options={products.map(p => ({ id: p.id, name: p.name, sub: `Last Cost: ₹${p.cost_price || 0} | Unit: ${p.unit || 'unit'}` }))}
@@ -259,7 +259,7 @@ export default function NewPurchasePage() {
                       <label className="form-label">Qty</label>
                       <input className="form-input" type="number" min="0.001" step="0.001" required value={item.quantity} onChange={e => updateItem(item._key, 'quantity', parseFloat(e.target.value)||0)} />
                     </div>
-                    <div className="form-group" style={{ flex:'1 1 80px', minWidth:80 }}>
+                    <div className="form-group">
                       <label className="form-label">GST %</label>
                       <select className="form-select" value={item.gst_rate} onChange={e => updateItem(item._key,'gst_rate',parseFloat(e.target.value))}>
                         {GST_SLABS.map(r => <option key={r} value={r}>{r}%</option>)}
@@ -267,8 +267,8 @@ export default function NewPurchasePage() {
                     </div>
                   </div>
                   {/* Row 2: Price mode + amount */}
-                  <div className="purchase-item-row" style={{ marginTop:'var(--space-3)', alignItems:'flex-end' }}>
-                    <div className="form-group" style={{ flex:'1 1 120px' }}>
+                  <div className="sale-item-grid" style={{ marginTop:'var(--space-3)', alignItems:'flex-end' }}>
+                    <div className="form-group">
                       <label className="form-label">Price Mode</label>
                       <div style={{ display:'flex', gap:4 }}>
                         {(['exclusive','inclusive'] as const).map(m => (
@@ -307,7 +307,7 @@ export default function NewPurchasePage() {
           </div>
 
           {/* Payment + Summary */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-5)' }}>
+          <div className="grid grid-1 md:grid-2 gap-5">
             <div className="card">
               <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Payment</h3>
               <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
@@ -346,18 +346,6 @@ export default function NewPurchasePage() {
           </div>
         </div>
       </form>
-
-      <style>{`
-        .purchase-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-        .purchase-item-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
-        .col-span-2 { grid-column: span 2; }
-        @media (max-width: 640px) {
-          .purchase-form-grid { grid-template-columns: 1fr; }
-          .col-span-2 { grid-column: span 1; }
-          .purchase-item-row { flex-direction: column; }
-          .purchase-item-row > * { flex: 1 1 100% !important; min-width: 100% !important; }
-        }
-      `}</style>
     </div>
   )
 }

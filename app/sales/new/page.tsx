@@ -196,11 +196,11 @@ export default function NewSalePage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ display:'grid', gap:'var(--space-5)' }}>
+        <div className="grid grid-1 gap-5">
           {/* Customer & Details */}
           <div className="card">
             <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Customer & Invoice Details</h3>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'var(--space-4)' }}>
+            <div className="grid grid-1 md:grid-3 gap-4">
               <div className="form-group" style={{ gridColumn:'1/-1' }}>
                 <label className="form-label">Customer</label>
                 <select className="form-select" value={form.customer_id} onChange={e => selectCustomer(e.target.value)}>
@@ -218,7 +218,7 @@ export default function NewSalePage() {
                   <input className="form-input" placeholder="Walk-in Customer" value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} />
                 </div>
               )}
-              <div className="form-group" style={{ gridColumn:'1/-1' }}>
+              <div className="form-group md:col-span-3">
                 <label className="form-label">Address</label>
                 <input className="form-input" placeholder="Billing Address..." value={form.customer_address} onChange={e => setForm(f => ({ ...f, customer_address: e.target.value }))} />
               </div>
@@ -330,7 +330,7 @@ export default function NewSalePage() {
           </div>
 
           {/* Payment + Totals */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-5)' }}>
+          <div className="grid grid-1 md:grid-2 gap-5">
             <div className="card">
               <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)' }}>Payment</h3>
               <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
@@ -376,14 +376,6 @@ export default function NewSalePage() {
           </div>
         </div>
       </form>
-
-      <style>{`
-        .sale-item-grid { display: grid; grid-template-columns: minmax(200px, 2fr) 80px 100px 100px 110px 100px 30px; gap: var(--space-3); align-items: flex-end; }
-        @media (max-width: 900px) {
-          .sale-item-grid { grid-template-columns: 1fr 1fr; }
-          .sale-item-grid > *:first-child { grid-column: 1 / -1; }
-        }
-      `}</style>
     </div>
   )
 }

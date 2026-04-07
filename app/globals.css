@@ -523,6 +523,7 @@ p { color: var(--text-secondary); }
 
 /* ── Grid Utilities ────────────────────────────────────── */
 .grid { display: grid; }
+.grid-1 { grid-template-columns: 1fr; }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
@@ -530,6 +531,37 @@ p { color: var(--text-secondary); }
 .gap-4 { gap: var(--space-4); }
 .gap-5 { gap: var(--space-5); }
 .gap-6 { gap: var(--space-6); }
+
+/* ── Responsive Variations ─────────────────────────────── */
+@media (min-width: 768px) {
+  .md\:grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .md\:grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .md\:grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .lg\:grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Sale Item Component ───────────────────────────────── */
+.sale-item-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 2.5fr) 80px 100px 100px 110px 100px 30px;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+
+@media (max-width: 1024px) {
+  .sale-item-grid { grid-template-columns: repeat(2, 1fr); }
+  .sale-item-grid > *:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 480px) {
+  .sale-item-grid { grid-template-columns: 1fr; }
+  .sale-item-grid > *:first-child { grid-column: auto; }
+  .sale-item-grid .form-group { flex: 1 1 auto !important; width: 100%; }
+}
 
 /* ── Flex Utilities ────────────────────────────────────── */
 .flex { display: flex; }
@@ -708,9 +740,12 @@ p { color: var(--text-secondary); }
 }
 
 @media (max-width: 480px) {
-  h1 { font-size: 1.5rem; }
-  .stat-value { font-size: 1.3rem; }
-  .btn-lg { padding: var(--space-3) var(--space-6); }
+  h1 { font-size: 1.35rem; }
+  .stat-value { font-size: 1.25rem; }
+  .btn-lg { padding: var(--space-3) var(--space-5); font-size: 0.9rem; }
+  .card { padding: var(--space-3); }
+  .page-content { padding: var(--space-3); }
+  .sale-item-grid { gap: var(--space-2); }
 }
 
 /* ── Sidebar Overlay (mobile) ──────────────────────────── */

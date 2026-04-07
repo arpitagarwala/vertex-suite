@@ -267,7 +267,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary Analytics Grid */}
-      <div className="grid grid-3 gap-4" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="grid grid-1 md:grid-3 gap-4" style={{ marginBottom: 'var(--space-6)' }}>
         {statCards.map((s, i) => {
           const IconComp = Icons[s.icon]
           const card = (
@@ -288,7 +288,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Performance Section */}
-      <div className="grid grid-2 gap-6" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="grid grid-1 md:grid-2 gap-6" style={{ marginBottom: 'var(--space-6)' }}>
         {/* Sales vs Purchases Trend */}
         <div className="card elevated">
           <div style={{ marginBottom: 'var(--space-5)' }}>
@@ -334,10 +334,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Secondary Row */}
-      <div className="grid grid-3 gap-6">
+      <div className="grid grid-1 md:grid-3 gap-6">
         {/* Quick Links */}
-        <div className="card" style={{ gridColumn: 'span 2' }}>
+        <div className="card md:col-span-2">
            <h3 className="section-title">Quick Actions</h3>
            <div className="quick-actions-flex">
               {[
@@ -418,13 +417,10 @@ export default function DashboardPage() {
         .action-tile-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
         .action-tile-label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
 
-        @media (max-width: 1024px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
-          .grid-3 { grid-template-columns: 1fr; }
           .filter-header { flex-direction: column; align-items: flex-start; }
           .filter-options { width: 100%; }
           .range-selector { width: 100%; overflow-x: auto; }
-          .grid-2 { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>
