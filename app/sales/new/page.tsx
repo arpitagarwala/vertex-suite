@@ -35,7 +35,7 @@ export default function NewSalePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [locations, setLocations] = useState<Location[]>([])
-  const [userProfile, setUserProfile] = useState<{ state_code: string }>({ state_code: '27' })
+  const [userProfile, setUserProfile] = useState<{ state_code: string; enable_cnf?: boolean }>({ state_code: '27', enable_cnf: true })
   const [stockLevels, setStockLevels] = useState<Record<string, number>>({})
   const [items, setItems, clearItemsDraft] = useDraft<LineItem[]>('sale_items', [defaultItem()])
   const [form, setForm, clearFormDraft] = useDraft('sale_form', defaultForm)
@@ -51,7 +51,7 @@ export default function NewSalePage() {
         supabase.from('products').select('*').eq('user_id', user.id).eq('is_active', true),
         supabase.from('customers').select('*').eq('user_id', user.id).order('name'),
         supabase.from('locations').select('*').eq('user_id', user.id).eq('is_active', true),
-        supabase.from('profiles').select('state_code').eq('id', user.id).single(),
+        supabase.from('profiles').select('state_code, enable_cnf').eq('id', user.id).single(),
       ])
       setProducts(prods || [])
       setCustomers(custs || [])
@@ -226,13 +226,15 @@ export default function NewSalePage() {
                   <option value="interstate">Interstate (IGST)</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Location / Counter</label>
-                <select className="form-select" value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
-                  <option value="">— No Location —</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
+              {userProfile.enable_cnf && (
+                <div className="form-group">
+                  <label className="form-label">Location / Counter</label>
+                  <select className="form-select" value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
+                    <option value="">— No Location —</option>
+                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -249,7 +251,7 @@ export default function NewSalePage() {
                         options={products.map(p => ({ 
                           id: p.id, 
                           name: String(p.name || 'Unnamed Product'), 
-                          sub: !form.location_id ? 'Select location to see stock' : `Available: ${stockLevels[p.id] || 0} ${p.unit || 'unit'}`
+                          sub: !userProfile.enable_cnf ? `Stock: ${stockLevels[p.id] || 0} ${p.unit || 'unit'}` : (!form.location_id ? 'Select location to see stock' : `Stock: ${stockLevels[p.id] || 0} ${p.unit || 'unit'}`)
                         }))}
                         value={item.product_id || ''}
                         onChange={(val) => selectProduct(item._key, val)}

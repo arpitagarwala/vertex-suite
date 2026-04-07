@@ -36,7 +36,7 @@ export default function NewPurchasePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Customer[]>([])
   const [locations, setLocations] = useState<Location[]>([])
-  const [userProfile, setUserProfile] = useState<{ state_code: string }>({ state_code: '27' })
+  const [userProfile, setUserProfile] = useState<{ state_code: string; enable_cnf?: boolean }>({ state_code: '27', enable_cnf: true })
   const [items, setItems, clearItemsDraft] = useDraft<LineItem[]>('purchase_items', [defaultItem()])
   const [form, setForm, clearFormDraft] = useDraft('purchase_form', defaultForm)
   const [hasDraft, setHasDraft] = useState(false)
@@ -51,7 +51,7 @@ export default function NewPurchasePage() {
         supabase.from('products').select('*').eq('user_id', user.id).eq('is_active', true),
         supabase.from('customers').select('*').eq('user_id', user.id).order('name'),
         supabase.from('locations').select('*').eq('user_id', user.id).eq('is_active', true),
-        supabase.from('profiles').select('state_code').eq('id', user.id).single(),
+        supabase.from('profiles').select('state_code, enable_cnf').eq('id', user.id).single(),
       ])
       setProducts(prods || [])
       setSuppliers(custs || [])
@@ -226,13 +226,15 @@ export default function NewPurchasePage() {
                 <label className="form-label">Bill Date</label>
                 <input className="form-input" type="date" required value={form.invoice_date} onChange={e => setForm(f => ({ ...f, invoice_date: e.target.value }))} />
               </div>
-              <div className="form-group col-span-2">
-                <label className="form-label">Receive at Location</label>
-                <select className="form-select" required value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
-                  <option value="">— Select Location —</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
+              {userProfile.enable_cnf && (
+                <div className="form-group col-span-2">
+                  <label className="form-label">Receive at Location</label>
+                  <select className="form-select" value={form.location_id} onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}>
+                    <option value="">— No Location —</option>
+                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
