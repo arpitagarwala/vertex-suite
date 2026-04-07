@@ -33,6 +33,7 @@ export default function AddExpensePage() {
     })
 
     if (error) { alert(error.message); setLoading(false); return }
+    router.refresh()
     router.push('/expenses')
   }
 

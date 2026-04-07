@@ -176,6 +176,7 @@ export default function NewSalePage() {
       }
     }
     clearFormDraft(); clearItemsDraft()
+    router.refresh()
     router.push(`/sales/${invoice.id}`)
   }
 

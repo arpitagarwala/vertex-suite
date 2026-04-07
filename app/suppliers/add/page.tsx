@@ -25,6 +25,7 @@ export default function AddSupplierPage() {
       user_id: user.id, customer_type: 'vendor', ...form
     })
     if (error) { alert(error.message); setLoading(false); return }
+    router.refresh()
     router.push('/suppliers')
   }
 

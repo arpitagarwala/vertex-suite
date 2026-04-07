@@ -96,7 +96,7 @@ export default function ExpensesPage() {
                         <strong style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(stats.totalAmount)}</strong>
                       </td>
                       <td data-label="Actions">
-                        <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/expenses/${encodeURIComponent(category.toLowerCase())}`)}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/expenses/category/${encodeURIComponent(category.toLowerCase())}`)}>
                           View Details →
                         </button>
                       </td>

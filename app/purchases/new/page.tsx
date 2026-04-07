@@ -173,6 +173,7 @@ export default function NewPurchasePage() {
     if (movements.length > 0) await supabase.from('stock_ledger').insert(movements)
 
     clearFormDraft(); clearItemsDraft()
+    router.refresh()
     router.push('/purchases')
   }
 

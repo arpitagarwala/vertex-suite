@@ -55,7 +55,8 @@ export default function EditExpensePage() {
 
     if (error) { alert(error.message); setLoading(false); return }
     // Redirect back to the grouped category page they came from
-    router.push(`/expenses/${encodeURIComponent(form.category.toLowerCase())}`)
+    router.refresh()
+    router.push(`/expenses/category/${encodeURIComponent(form.category.toLowerCase())}`)
   }
 
   if (initialLoading) {

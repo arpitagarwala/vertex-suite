@@ -38,6 +38,7 @@ export default function AddCustomerPage() {
     })
 
     if (error) { alert(error.message); setLoading(false); return }
+    router.refresh()
     router.push('/customers')
   }
 

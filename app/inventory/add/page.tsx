@@ -90,6 +90,7 @@ export default function AddProductPage() {
       })
     }
 
+    router.refresh()
     router.push('/inventory')
   }
 

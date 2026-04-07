@@ -53,6 +53,7 @@ export default function EditProductPage() {
       low_stock_alert: form.low_stock_alert, is_service: form.is_service,
     }).eq('id', id)
     if (error) { alert(error.message); setLoading(false); return }
+    router.refresh()
     router.push(`/inventory/${id}`)
   }
 

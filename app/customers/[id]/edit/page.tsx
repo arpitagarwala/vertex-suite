@@ -61,6 +61,7 @@ export default function EditCustomerPage() {
     }).eq('id', id)
 
     if (error) { alert(error.message); setLoading(false); return }
+    router.refresh()
     router.push('/customers')
   }
 
