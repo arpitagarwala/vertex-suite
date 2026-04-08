@@ -10,6 +10,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [enableCnf, setEnableCnf] = useState(false)
+  const [debtorAgingEnabled, setDebtorAgingEnabled] = useState(false)
+  const [debtorAgingDays, setDebtorAgingDays] = useState(30)
   const [form, setForm] = useState({
     business_name: '', owner_name: '', gstin: '', pan: '',
     phone: '', email: '', address: '', city: '', state_code: '27', pincode: '',
@@ -38,6 +40,8 @@ export default function SettingsPage() {
         bank_ifsc: prof.bank_ifsc || '', bank_branch: prof.bank_branch || ''
       })
       setEnableCnf(prof.enable_cnf ?? false)
+      setDebtorAgingEnabled(prof.debtor_aging_enabled ?? false)
+      setDebtorAgingDays(prof.debtor_aging_days ?? 30)
     }
     setLocations(locs || [])
     setLoading(false)
@@ -50,7 +54,11 @@ export default function SettingsPage() {
     if (!user) return
     const selectedState = INDIAN_STATES.find(s => s.code === form.state_code)
     await supabase.from('profiles').update({
-      ...form, state_name: selectedState?.name || '', enable_cnf: enableCnf
+      ...form, 
+      state_name: selectedState?.name || '', 
+      enable_cnf: enableCnf,
+      debtor_aging_enabled: debtorAgingEnabled,
+      debtor_aging_days: debtorAgingDays
     }).eq('id', user.id)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -152,6 +160,41 @@ export default function SettingsPage() {
           </div>
 
           {/* C&F Toggle */}
+          {/* Debtor Management */}
+          <div className="card">
+            <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)', display:'flex', alignItems:'center', gap:8 }}>
+              <Icons.AlertTriangle size={16} /> Debtor Management
+            </h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+              <div className="toggle-wrap" style={{ justifyContent:'space-between', padding:'var(--space-4)', background:'var(--bg-elevated)', borderRadius:'var(--radius-md)' }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:'0.95rem' }}>Debtor Aging Notifications</div>
+                  <div style={{ fontSize:'0.8rem', color:'var(--text-muted)', marginTop:2 }}>Track and notify when customers have unpaid invoices older than set days.</div>
+                </div>
+                <div className={`toggle ${debtorAgingEnabled ? 'on' : ''}`} onClick={() => setDebtorAgingEnabled(v=>!v)}>
+                  <div className="toggle-thumb" />
+                </div>
+              </div>
+              
+              {debtorAgingEnabled && (
+                <div className="form-group animate-fade" style={{ padding:'0 var(--space-2)' }}>
+                  <label className="form-label">Aging Threshold (Days)</label>
+                  <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      style={{ maxWidth: 120 }}
+                      value={debtorAgingDays} 
+                      onChange={e => setDebtorAgingDays(parseInt(e.target.value) || 0)} 
+                      min={1}
+                    />
+                    <span style={{ fontSize:'0.85rem', color:'var(--text-muted)' }}>Days after invoice date to trigger alert</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="card">
             <h3 style={{ fontSize:'0.85rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'var(--space-4)', display:'flex', alignItems:'center', gap:8 }}>
               <Icons.Truck size={16} /> Operations Mode

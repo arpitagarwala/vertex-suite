@@ -22,6 +22,7 @@ function PurchasesPageContent() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [stats, setStats] = useState({ total: 0, paid: 0, unpaid: 0, gst: 0 })
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -147,60 +148,114 @@ function PurchasesPageContent() {
           <Link href="/purchases/new"><button className="btn btn-primary"><Icons.Plus size={14} /> Log Purchase</button></Link>
         </div>
       ) : (
-        <div className="table-wrap table-mobile-card">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Bill #</th><th>Supplier / Vendor</th><th>Date</th>
-                <th>Amount</th><th>ITC (GST)</th><th>Status</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(inv => (
-                <tr key={inv.id}>
-                  <td data-label="Bill #">
-                    <span className="monospace" style={{ color:'var(--brand-primary-light)', fontWeight:600 }}>{inv.invoice_number}</span>
-                    {(inv as any).edit_count > 0 && <span className="badge badge-warning" style={{ marginLeft:4, fontSize:'0.65rem' }}>Edited</span>}
-                  </td>
-                  <td data-label="Supplier">
-                    <div style={{ fontWeight:500 }}>{inv.customer_name || 'Walk-in Vendor'}</div>
-                    {inv.customer_gstin && <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>{inv.customer_gstin}</div>}
-                  </td>
-                  <td data-label="Date" style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>
-                    {format(new Date(inv.invoice_date), 'dd MMM yyyy')}
-                  </td>
-                  <td data-label="Amount">
-                    <div style={{ fontWeight:700, fontFamily:'var(--font-mono)' }}>{formatINR(inv.grand_total)}</div>
-                    {inv.payment_status === 'partial' && (
-                      <div style={{ fontSize:'0.75rem', color:'var(--brand-warning)' }}>Paid: {formatINR(inv.amount_paid)}</div>
-                    )}
-                  </td>
-                  <td data-label="ITC (GST)" style={{ fontFamily:'var(--font-mono)', fontSize:'0.875rem', color:'var(--brand-success)' }}>
-                    +{formatINR(inv.total_gst)}
-                  </td>
-                  <td data-label="Status">{statusBadge(inv.payment_status)}</td>
-                  <td data-label="Actions">
-                    <div style={{ display:'flex', gap:'var(--space-1)' }}>
-                      <Link href={`/purchases/${inv.id}/edit`}>
-                        <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={15} /></button>
-                      </Link>
-                      {inv.payment_status !== 'paid' && (
-                        <button className="btn btn-ghost btn-sm" title="Mark Paid" style={{ color:'var(--brand-success)' }}
-                          onClick={() => markPaid(inv.id, inv.grand_total)}>
-                          <Icons.Check size={15} />
-                        </button>
-                      )}
-                      <button className="btn btn-ghost btn-sm" title="Cancel" style={{ color:'var(--brand-danger)' }}
-                        onClick={() => cancelInvoice(inv.id)}>
-                        <Icons.X size={15} />
-                      </button>
-                    </div>
-                  </td>
+        <>
+          {/* Desktop Table */}
+          <div className="table-wrap desktop-only">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Bill #</th><th>Supplier / Vendor</th><th>Date</th>
+                  <th>Amount</th><th>ITC (GST)</th><th>Status</th><th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map(inv => (
+                  <tr key={inv.id}>
+                    <td>
+                      <span className="monospace" style={{ color:'var(--brand-primary-light)', fontWeight:600 }}>{inv.invoice_number}</span>
+                      {(inv as any).edit_count > 0 && <span className="badge badge-warning" style={{ marginLeft:4, fontSize:'0.65rem' }}>Edited</span>}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight:500 }}>{inv.customer_name || 'Walk-in Vendor'}</div>
+                      {inv.customer_gstin && <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>{inv.customer_gstin}</div>}
+                    </td>
+                    <td style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>
+                      {format(new Date(inv.invoice_date), 'dd MMM yyyy')}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight:700, fontFamily:'var(--font-mono)' }}>{formatINR(inv.grand_total)}</div>
+                      {inv.payment_status === 'partial' && (
+                        <div style={{ fontSize:'0.75rem', color:'var(--brand-warning)' }}>Paid: {formatINR(inv.amount_paid)}</div>
+                      )}
+                    </td>
+                    <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.875rem', color:'var(--brand-success)' }}>
+                      +{formatINR(inv.total_gst)}
+                    </td>
+                    <td>{statusBadge(inv.payment_status)}</td>
+                    <td>
+                      <div style={{ display:'flex', gap:'var(--space-1)' }}>
+                        <Link href={`/purchases/${inv.id}/edit`}>
+                          <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={15} /></button>
+                        </Link>
+                        {inv.payment_status !== 'paid' && (
+                          <button className="btn btn-ghost btn-sm" title="Mark Paid" style={{ color:'var(--brand-success)' }}
+                            onClick={() => markPaid(inv.id, inv.grand_total)}>
+                            <Icons.Check size={15} />
+                          </button>
+                        )}
+                        <button className="btn btn-ghost btn-sm" title="Cancel" style={{ color:'var(--brand-danger)' }}
+                          onClick={() => cancelInvoice(inv.id)}>
+                          <Icons.X size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Accordion */}
+          <div className="accordion-list mobile-only">
+            {filtered.map(inv => (
+              <div key={inv.id} className={`accordion-item ${expandedId === inv.id ? 'expanded' : ''}`}>
+                <div className="accordion-header" onClick={() => setExpandedId(expandedId === inv.id ? null : inv.id)}>
+                  <div className="accordion-summary-left">
+                    <span className="accordion-customer">{inv.customer_name || 'Walk-in Vendor'}</span>
+                    <span className="accordion-date">{format(new Date(inv.invoice_date), 'dd MMM yyyy')}</span>
+                  </div>
+                  <div className="accordion-summary-right">
+                    <span className="accordion-amount">{formatINR(inv.grand_total)}</span>
+                    <Icons.ChevronDown size={16} color="var(--text-muted)" style={{ transform: expandedId === inv.id ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+                  </div>
+                </div>
+                <div className="accordion-body">
+                  <div className="accordion-details-grid">
+                    <div className="accordion-detail-item">
+                      <span className="accordion-detail-label">Bill #</span>
+                      <span className="monospace" style={{ fontSize: '0.8rem', color: 'var(--brand-primary-light)' }}>{inv.invoice_number}</span>
+                    </div>
+                    <div className="accordion-detail-item">
+                      <span className="accordion-detail-label">Status</span>
+                      <span>{statusBadge(inv.payment_status)}</span>
+                    </div>
+                    <div className="accordion-detail-item">
+                      <span className="accordion-detail-label">ITC (GST)</span>
+                      <span className="monospace" style={{ color: 'var(--brand-success)' }}>+{formatINR(inv.total_gst)}</span>
+                    </div>
+                    <div className="accordion-detail-item">
+                      <span className="accordion-detail-label">GSTIN</span>
+                      <span className="monospace" style={{ fontSize: '0.7rem' }}>{inv.customer_gstin || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="accordion-actions">
+                    <Link href={`/purchases/${inv.id}/edit`} className="flex-1">
+                      <button className="btn btn-secondary btn-sm btn-full"><Icons.Edit size={14} /> Edit Bill</button>
+                    </Link>
+                    {inv.payment_status !== 'paid' && (
+                      <button className="btn btn-success btn-sm flex-1" onClick={(e) => { e.stopPropagation(); markPaid(inv.id, inv.grand_total); }}>
+                        <Icons.Check size={14} /> Mark Paid
+                      </button>
+                    )}
+                    <button className="btn btn-danger btn-sm flex-1" onClick={(e) => { e.stopPropagation(); cancelInvoice(inv.id); }}>
+                      <Icons.X size={14} /> Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

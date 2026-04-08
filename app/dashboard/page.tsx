@@ -11,7 +11,7 @@ import {
 import { 
   format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, 
   startOfYear, endOfYear, isWithinInterval, parseISO, eachDayOfInterval,
-  subMonths, eachMonthOfInterval
+  subMonths, eachMonthOfInterval, differenceInDays
 } from 'date-fns'
 
 type RangeType = 'today' | 'this_month' | 'this_quarter' | 'this_fy' | 'custom'
@@ -46,6 +46,8 @@ export default function DashboardPage() {
   const [range, setRange] = useState<RangeType>('this_month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [debtorAlerts, setDebtorAlerts] = useState<any[]>([])
+  const [profile, setProfile] = useState<any>(null)
 
   // Date Range Helper
   const dateRange = useMemo(() => {
@@ -87,16 +89,8 @@ export default function DashboardPage() {
 
     const { start, end } = dateRange
 
-    const [
-      { data: profile }, 
-      { data: sales }, 
-      { data: purchases }, 
-      { data: expenses }, 
-      { data: products }, 
-      { data: customers },
-      { data: stock }
-    ] = await Promise.all([
-      supabase.from('profiles').select('business_name').eq('id', user.id).single(),
+    const results = await Promise.all([
+      supabase.from('profiles').select('business_name, debtor_aging_enabled, debtor_aging_days').eq('id', user.id).single(),
       supabase.from('invoices').select('*, items:invoice_items(*)')
         .eq('user_id', user.id).eq('status', 'active').eq('invoice_type', 'sale')
         .gte('invoice_date', start).lte('invoice_date', end),
@@ -108,15 +102,24 @@ export default function DashboardPage() {
         .gte('expense_date', start).lte('expense_date', end),
       supabase.from('products').select('*').eq('user_id', user.id).eq('is_active', true),
       supabase.from('customers').select('*').eq('user_id', user.id),
-      supabase.from('stock_summary').select('product_id, current_stock').eq('user_id', user.id)
+      supabase.from('stock_summary').select('product_id, current_stock').eq('user_id', user.id),
+      // All unpaid sales for aging (no date filter)
+      supabase.from('invoices').select('*')
+        .eq('user_id', user.id).eq('status', 'active').eq('invoice_type', 'sale')
+        .neq('payment_status', 'paid')
     ])
 
-    if (profile?.business_name) setBusinessName(profile.business_name)
+    const profile = results[0].data
+    const salesList = results[1].data || []
+    const purchaseList = results[2].data || []
+    const expenseList = results[3].data || []
+    const productList = results[4].data || []
+    const customerList = results[5].data || []
+    const stock = results[6].data || []
+    const unpaidSalesTotal = results[7].data || []
 
-    const salesList = sales || []
-    const purchaseList = purchases || []
-    const expenseList = expenses || []
-    const productList = products || []
+    setProfile(profile)
+    if (profile?.business_name) setBusinessName(profile.business_name)
 
     const totalRevenue = salesList.reduce((s, i) => s + (i.grand_total || 0), 0)
     const totalSaleTaxable = salesList.reduce((s, i) => s + (i.taxable_amount || 0), 0)
@@ -145,6 +148,32 @@ export default function DashboardPage() {
     const netProfit = grossProfit - totalExpenses
     const gstLiability = totalSaleGST - totalPurchaseGST
 
+    // Debtor Aging Calculation
+    if (profile?.debtor_aging_enabled) {
+      const agingDays = profile.debtor_aging_days || 30
+      const today = new Date()
+      
+      const overdueByCustomer: Record<string, { name: string; amount: number; count: number }> = {}
+      
+      unpaidSalesTotal.forEach(invoice => {
+        const invDate = parseISO(invoice.invoice_date)
+        const diff = differenceInDays(today, invDate)
+        
+        if (diff > agingDays) {
+          const unpaidAmt = (invoice.grand_total || 0) - (invoice.amount_paid || 0)
+          if (!overdueByCustomer[invoice.customer_id]) {
+            overdueByCustomer[invoice.customer_id] = { name: invoice.customer_name, amount: 0, count: 0 }
+          }
+          overdueByCustomer[invoice.customer_id].amount += unpaidAmt
+          overdueByCustomer[invoice.customer_id].count += 1
+        }
+      })
+      
+      setDebtorAlerts(Object.values(overdueByCustomer).sort((a,b) => b.amount - a.amount))
+    } else {
+      setDebtorAlerts([])
+    }
+
     // Low stock count
     const lowStockCount = productList.filter(p => {
       const pStock = stock?.filter(s => s.product_id === p.id).reduce((sum, entry) => sum + (entry.current_stock || 0), 0) || 0
@@ -160,8 +189,8 @@ export default function DashboardPage() {
       totalExpenses,
       totalProducts: productList.length,
       lowStockCount,
-      totalCustomers: customers?.length || 0,
-      totalInvoices: salesList.length,
+      totalCustomers: customerList.length,
+      totalInvoices: salesList.length + purchaseList.length,
       totalPurchaseTaxable,
       totalPurchaseGST,
       gstLiability,
@@ -169,6 +198,7 @@ export default function DashboardPage() {
       unpaidPurchases,
       totalCOGS
     })
+
 
     setPaymentBreakdown([
       { name: 'Paid', value: salesList.filter(i => i.payment_status === 'paid').length },
@@ -265,6 +295,35 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Debtor Aging Alerts */}
+      {debtorAlerts.length > 0 && (
+        <div className="card animate-fade" style={{ marginBottom: 'var(--space-6)', borderLeft: '4px solid var(--brand-danger)', background: 'rgba(239, 68, 68, 0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(239, 68, 68, 0.1)', color: 'var(--brand-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink:0 }}>
+              <Icons.AlertTriangle size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Debtor Aging Warning</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                {debtorAlerts.length} customers have unpaid invoices older than {profile?.debtor_aging_days} days.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                {debtorAlerts.slice(0, 3).map((alert, i) => (
+                  <div key={i} style={{ padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: '0.8rem', border: '1px solid var(--border-subtle)' }}>
+                    <span style={{ fontWeight: 600 }}>{alert.name}</span>: <span style={{ color: 'var(--brand-danger)' }}>{formatINR(alert.amount)}</span>
+                  </div>
+                ))}
+                {debtorAlerts.length > 3 && (
+                  <div style={{ padding: '8px 12px', borderRadius: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    + {debtorAlerts.length - 3} more
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Primary Analytics Grid */}
       <div className="grid grid-1 md:grid-3 gap-4" style={{ marginBottom: 'var(--space-6)' }}>
