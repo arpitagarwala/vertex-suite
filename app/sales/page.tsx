@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatINR } from '@/lib/gst'
+import { formatINR, getStateName } from '@/lib/gst'
 import { format } from 'date-fns'
 import { Icons } from '@/components/Icons'
 import type { Invoice } from '@/lib/types'
@@ -22,7 +22,9 @@ function SalesPageContent() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [stats, setStats] = useState({ total: 0, paid: 0, unpaid: 0, gst: 0 })
+  const [profile, setProfile] = useState<any>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -30,11 +32,14 @@ function SalesPageContent() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('invoices').select('*')
-      .eq('user_id', user.id).eq('invoice_type', 'sale').eq('status', 'active')
-      .order('invoice_date', { ascending: false })
-    const list = data || []
+    const [{ data: invs }, { data: prof }] = await Promise.all([
+      supabase.from('invoices').select('*').eq('user_id', user.id).eq('invoice_type', 'sale').eq('status', 'active').order('invoice_date', { ascending: false }),
+      supabase.from('profiles').select('*').eq('id', user.id).single()
+    ])
+    
+    const list = invs || []
     setInvoices(list)
+    setProfile(prof)
     setStats({
       total: list.reduce((s, i) => s + i.grand_total, 0),
       paid: list.reduce((s, i) => s + (i.amount_paid || 0), 0),
@@ -42,6 +47,28 @@ function SalesPageContent() {
       gst: list.reduce((s, i) => s + i.total_gst, 0),
     })
     setLoading(false)
+  }
+
+  async function handleDirectDownload(inv: Invoice) {
+    if (downloadingId) return
+    setDownloadingId(inv.id)
+    try {
+      // Fetch items
+      const { data: items } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id)
+      
+      // Fetch profile and settings
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', inv.user_id).single()
+      
+      const settings = (profile as any)?.invoice_settings
+      
+      const { generateInvoicePDF } = await import('@/lib/pdf')
+      await generateInvoicePDF(inv, items || [], profile as any, settings)
+    } catch (err) {
+      console.error('Download failed:', err)
+      alert('Failed to download PDF')
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   async function cancelInvoice(id: string) {
@@ -151,7 +178,7 @@ function SalesPageContent() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Invoice #</th><th>Customer</th><th>Date</th>
+                  <th>Invoice #</th><th>Customer / State</th><th>Date</th>
                   <th>Amount</th><th>GST</th><th>Status</th><th>Actions</th>
                 </tr>
               </thead>
@@ -164,7 +191,9 @@ function SalesPageContent() {
                     </td>
                     <td>
                       <div style={{ fontWeight:500 }}>{inv.customer_name || 'Walk-in'}</div>
-                      <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', textTransform:'capitalize' }}>{inv.supply_type}</div>
+                      <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>
+                        {getStateName(inv.customer_state_code || (inv.supply_type === 'intrastate' ? profile?.state_code : null))}
+                      </div>
                     </td>
                     <td style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>
                       {format(new Date(inv.invoice_date), 'dd MMM yyyy')}
@@ -183,8 +212,13 @@ function SalesPageContent() {
                     <td>
                       <div style={{ display:'flex', gap:'var(--space-1)' }}>
                         <Link href={`/sales/${inv.id}`}>
-                          <button className="btn btn-ghost btn-sm" title="View"><Icons.Eye size={15} /></button>
+                          <button className="btn btn-ghost btn-sm" title="View Details"><Icons.Eye size={15} /></button>
                         </Link>
+                        <button className="btn btn-ghost btn-sm" title="Direct Download" 
+                          onClick={() => handleDirectDownload(inv)}
+                          disabled={downloadingId === inv.id}>
+                          {downloadingId === inv.id ? <div className="spinner-xs" /> : <Icons.Download size={15} />}
+                        </button>
                         <Link href={`/sales/${inv.id}/edit`}>
                           <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={15} /></button>
                         </Link>
@@ -229,19 +263,24 @@ function SalesPageContent() {
                       <span className="monospace">{formatINR(inv.total_gst)}</span>
                     </div>
                     <div className="accordion-detail-item">
-                      <span className="accordion-detail-label">Type</span>
-                      <span style={{ textTransform: 'capitalize', fontSize: '0.8rem' }}>{inv.supply_type}</span>
+                      <span className="accordion-detail-label">State</span>
+                      <span style={{ fontSize: '0.8rem' }}>{getStateName(inv.customer_state_code || (inv.supply_type === 'intrastate' ? profile?.state_code : null))}</span>
                     </div>
                   </div>
                   <div className="accordion-actions">
                     <Link href={`/sales/${inv.id}`} className="flex-1">
                       <button className="btn btn-secondary btn-sm btn-full"><Icons.Eye size={14} /> View</button>
                     </Link>
+                    <button className="btn btn-secondary btn-sm flex-1" 
+                      onClick={(e) => { e.stopPropagation(); handleDirectDownload(inv); }}
+                      disabled={downloadingId === inv.id}>
+                      {downloadingId === inv.id ? '...' : <><Icons.Download size={14} /> Download</>}
+                    </button>
                     <Link href={`/sales/${inv.id}/edit`} className="flex-1">
                       <button className="btn btn-secondary btn-sm btn-full"><Icons.Edit size={14} /> Edit</button>
                     </Link>
-                    <button className="btn btn-danger btn-sm flex-1" onClick={(e) => { e.stopPropagation(); cancelInvoice(inv.id); }}>
-                      <Icons.X size={14} /> Cancel
+                    <button className="btn btn-danger btn-sm" style={{ minWidth: 40 }} onClick={(e) => { e.stopPropagation(); cancelInvoice(inv.id); }}>
+                      <Icons.X size={14} />
                     </button>
                   </div>
                 </div>

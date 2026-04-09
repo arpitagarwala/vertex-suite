@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatINR } from '@/lib/gst'
+import { formatINR, getStateName } from '@/lib/gst'
 import { format } from 'date-fns'
 import { Icons } from '@/components/Icons'
 import type { Invoice } from '@/lib/types'
@@ -22,7 +22,9 @@ function PurchasesPageContent() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [stats, setStats] = useState({ total: 0, paid: 0, unpaid: 0, gst: 0 })
+  const [profile, setProfile] = useState<any>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -30,11 +32,14 @@ function PurchasesPageContent() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('invoices').select('*')
-      .eq('user_id', user.id).eq('invoice_type', 'purchase').eq('status', 'active')
-      .order('invoice_date', { ascending: false })
-    const list = data || []
+    const [{ data: invs }, { data: prof }] = await Promise.all([
+      supabase.from('invoices').select('*').eq('user_id', user.id).eq('invoice_type', 'purchase').eq('status', 'active').order('invoice_date', { ascending: false }),
+      supabase.from('profiles').select('*').eq('id', user.id).single()
+    ])
+    
+    const list = invs || []
     setInvoices(list)
+    setProfile(prof)
     setStats({
       total: list.reduce((s, i) => s + i.grand_total, 0),
       paid: list.reduce((s, i) => s + (i.amount_paid || 0), 0),
@@ -42,6 +47,28 @@ function PurchasesPageContent() {
       gst: list.reduce((s, i) => s + i.total_gst, 0),
     })
     setLoading(false)
+  }
+
+  async function handleDirectDownload(inv: Invoice) {
+    if (downloadingId) return
+    setDownloadingId(inv.id)
+    try {
+      // Fetch items
+      const { data: items } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id)
+      
+      // Fetch profile and settings
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', inv.user_id).single()
+      
+      const settings = (profile as any)?.invoice_settings
+      
+      const { generateInvoicePDF } = await import('@/lib/pdf')
+      await generateInvoicePDF(inv, items || [], profile as any, settings)
+    } catch (err) {
+      console.error('Download failed:', err)
+      alert('Failed to download PDF')
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   async function markPaid(id: string, total: number) {
@@ -167,6 +194,9 @@ function PurchasesPageContent() {
                     </td>
                     <td>
                       <div style={{ fontWeight:500 }}>{inv.customer_name || 'Walk-in Vendor'}</div>
+                      <div style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>
+                        {getStateName(inv.customer_state_code || (inv.supply_type === 'intrastate' ? profile?.state_code : null))}
+                      </div>
                       {inv.customer_gstin && <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>{inv.customer_gstin}</div>}
                     </td>
                     <td style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>
@@ -184,6 +214,14 @@ function PurchasesPageContent() {
                     <td>{statusBadge(inv.payment_status)}</td>
                     <td>
                       <div style={{ display:'flex', gap:'var(--space-1)' }}>
+                        <Link href={`/purchases/${inv.id}`}>
+                          <button className="btn btn-ghost btn-sm" title="View Details"><Icons.Eye size={15} /></button>
+                        </Link>
+                        <button className="btn btn-ghost btn-sm" title="Direct Download" 
+                          onClick={() => handleDirectDownload(inv)}
+                          disabled={downloadingId === inv.id}>
+                          {downloadingId === inv.id ? <div className="spinner-xs" /> : <Icons.Download size={15} />}
+                        </button>
                         <Link href={`/purchases/${inv.id}/edit`}>
                           <button className="btn btn-ghost btn-sm" title="Edit"><Icons.Edit size={15} /></button>
                         </Link>
@@ -234,21 +272,35 @@ function PurchasesPageContent() {
                       <span className="monospace" style={{ color: 'var(--brand-success)' }}>+{formatINR(inv.total_gst)}</span>
                     </div>
                     <div className="accordion-detail-item">
+                      <span className="accordion-detail-label">State</span>
+                      <span style={{ fontSize: '0.75rem' }}>
+                        {getStateName(inv.customer_state_code || (inv.supply_type === 'intrastate' ? profile?.state_code : null))}
+                      </span>
+                    </div>
+                    <div className="accordion-detail-item">
                       <span className="accordion-detail-label">GSTIN</span>
                       <span className="monospace" style={{ fontSize: '0.7rem' }}>{inv.customer_gstin || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="accordion-actions">
+                    <Link href={`/purchases/${inv.id}`} className="flex-1">
+                      <button className="btn btn-secondary btn-sm btn-full"><Icons.Eye size={14} /> View</button>
+                    </Link>
+                    <button className="btn btn-secondary btn-sm flex-1" 
+                      onClick={(e) => { e.stopPropagation(); handleDirectDownload(inv); }}
+                      disabled={downloadingId === inv.id}>
+                      {downloadingId === inv.id ? '...' : <><Icons.Download size={14} /> Download</>}
+                    </button>
                     <Link href={`/purchases/${inv.id}/edit`} className="flex-1">
-                      <button className="btn btn-secondary btn-sm btn-full"><Icons.Edit size={14} /> Edit Bill</button>
+                      <button className="btn btn-secondary btn-sm btn-full"><Icons.Edit size={14} /> Edit</button>
                     </Link>
                     {inv.payment_status !== 'paid' && (
-                      <button className="btn btn-success btn-sm flex-1" onClick={(e) => { e.stopPropagation(); markPaid(inv.id, inv.grand_total); }}>
-                        <Icons.Check size={14} /> Mark Paid
+                      <button className="btn btn-success btn-sm" style={{ minWidth: 40 }} onClick={(e) => { e.stopPropagation(); markPaid(inv.id, inv.grand_total); }}>
+                        <Icons.Check size={14} />
                       </button>
                     )}
-                    <button className="btn btn-danger btn-sm flex-1" onClick={(e) => { e.stopPropagation(); cancelInvoice(inv.id); }}>
-                      <Icons.X size={14} /> Cancel
+                    <button className="btn btn-danger btn-sm" style={{ minWidth: 40 }} onClick={(e) => { e.stopPropagation(); cancelInvoice(inv.id); }}>
+                      <Icons.X size={14} />
                     </button>
                   </div>
                 </div>

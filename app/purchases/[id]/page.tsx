@@ -9,7 +9,7 @@ import { downloadInvoicePDF } from '@/lib/pdf'
 import type { Invoice, InvoiceItem, Profile } from '@/lib/types'
 import { DEFAULT_INVOICE_SETTINGS } from '@/lib/types'
 
-export default function InvoiceDetailPage() {
+export default function PurchaseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -18,10 +18,6 @@ export default function InvoiceDetailPage() {
   const [items, setItems] = useState<InvoiceItem[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showDiscount, setShowDiscount] = useState(false)
-  const [discountAmt, setDiscountAmt] = useState('')
-  const [discountNote, setDiscountNote] = useState('')
-  const [applyingDiscount, setApplyingDiscount] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
   // Merge settings with defaults
@@ -35,7 +31,6 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     if (!loading && invoice && profile && searchParams.get('download') === 'true') {
-      // Auto-trigger PDF download
       const url = new URL(window.location.href)
       url.searchParams.delete('download')
       window.history.replaceState({}, '', url.toString())
@@ -47,7 +42,7 @@ export default function InvoiceDetailPage() {
     if (!invoice || !profile) return
     setDownloading(true)
     try {
-      await downloadInvoicePDF({ invoice, items, profile })
+      await downloadInvoicePDF({ invoice, items, profile, titleOverride: 'PURCHASE BILL' })
     } catch (e) {
       console.error('PDF generation failed:', e)
       alert('Failed to generate PDF. Please try again.')
@@ -69,89 +64,13 @@ export default function InvoiceDetailPage() {
   }
 
   async function markPaid() {
-    await supabase.from('invoices').update({ payment_status: 'paid', amount_paid: invoice?.grand_total }).eq('id', id)
+    if (!invoice) return
+    await supabase.from('invoices').update({ payment_status: 'paid', amount_paid: invoice.grand_total }).eq('id', id)
     setInvoice(i => i ? { ...i, payment_status: 'paid', amount_paid: i.grand_total } : i)
   }
 
-  async function applyDiscount() {
-    const disc = parseFloat(discountAmt)
-    if (!disc || disc <= 0 || !invoice) return
-    setApplyingDiscount(true)
-    
-    // Post-Tax Cash Discount: Do NOT modify items. 
-    // Only update the invoice grand total and cash_discount field.
-    const currentItemsTotal = items.reduce((s, i) => s + i.total_amount, 0)
-    const newTotalDiscount = (invoice.cash_discount || 0) + disc
-    const newGrandTotal = Math.round(currentItemsTotal - newTotalDiscount)
-
-    await supabase.from('invoices').update({
-      grand_total: newGrandTotal,
-      cash_discount: newTotalDiscount,
-      cash_discount_note: discountNote || 'Cash discount applied',
-    }).eq('id', id)
-
-    setDiscountAmt(''); setDiscountNote(''); setShowDiscount(false)
-    load()
-    setApplyingDiscount(false)
-  }
-
-  function generateEwayJSON() {
-    if (!invoice || !profile) return
-    const payload = {
-      version: "1.0.1",
-      billLists: [{
-        fromGstin: profile.gstin || "YOUR_GSTIN",
-        fromTrdName: profile.business_name || "",
-        fromAddr1: profile.address || "",
-        fromPlace: profile.city || "",
-        fromPincode: profile.pincode || "000000",
-        fromStateCode: parseInt(profile.state_code || "27"),
-        toGstin: invoice.customer_gstin || "URP",
-        toTrdName: invoice.customer_name || "",
-        toAddr1: "",
-        toPlace: "",
-        toPincode: "000000",
-        toStateCode: parseInt(invoice.customer_state_code || profile.state_code || "27"),
-        transactionType: 1,
-        otherValue: 0,
-        totalValue: invoice.taxable_amount,
-        cgstValue: invoice.cgst_amount,
-        sgstValue: invoice.sgst_amount,
-        igstValue: invoice.igst_amount,
-        cessValue: 0,
-        cessNonAdvolValue: 0,
-        totInvValue: invoice.grand_total,
-        supplyType: invoice.supply_type === "interstate" ? "O" : "I",
-        subSupplyType: 1,
-        docType: "INV",
-        docNo: invoice.invoice_number,
-        docDate: format(new Date(invoice.invoice_date), "dd/MM/yyyy"),
-        transMode: "1",
-        transDistance: "0",
-        itemList: items.map((item, idx) => ({
-          itemNo: idx + 1,
-          productName: item.product_name,
-          productDesc: item.product_name,
-          hsnCode: item.hsn_code || "0000",
-          quantity: item.quantity,
-          qtyUnit: (item.unit || "NOS").toUpperCase().slice(0, 3),
-          cgstRate: item.cgst_rate || 0,
-          sgstRate: item.sgst_rate || 0,
-          igstRate: item.igst_rate || 0,
-          cessRate: 0,
-          taxableAmount: item.taxable_amount,
-        }))
-      }]
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `EwayBill_${invoice.invoice_number}.json`
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
-  }
-
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200 }}><div className="skeleton" style={{ width:'100%', height:400 }} /></div>
-  if (!invoice) return <div className="empty-state"><h3>Invoice not found</h3></div>
+  if (!invoice) return <div className="empty-state"><h3>Purchase record not found</h3></div>
 
   const isInter = invoice.supply_type === 'interstate'
 
@@ -159,10 +78,8 @@ export default function InvoiceDetailPage() {
     <div className="animate-fade">
       <div className="page-header no-print">
         <div className="page-header-left">
-          <h1 className="page-title">{invoice.invoice_number}</h1>
-          <p className="page-subtitle">{format(new Date(invoice.invoice_date), 'dd MMMM yyyy')}
-            {(invoice as any).edit_count > 0 && <span className="badge badge-warning" style={{ marginLeft:8, fontSize:'0.7rem' }}>Edited ×{(invoice as any).edit_count}</span>}
-          </p>
+          <h1 className="page-title">Purchase Bill: {invoice.invoice_number}</h1>
+          <p className="page-subtitle">{format(new Date(invoice.invoice_date), 'dd MMMM yyyy')}</p>
         </div>
         <div className="page-actions">
           {invoice.payment_status !== 'paid' && (
@@ -170,14 +87,8 @@ export default function InvoiceDetailPage() {
               <Icons.Check size={15} /> Mark Paid
             </button>
           )}
-          <button className="btn btn-secondary" onClick={() => setShowDiscount(!showDiscount)} style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <Icons.Zap size={15} /> Cash Discount
-          </button>
-          <button className="btn btn-secondary" onClick={generateEwayJSON} style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <Icons.Download size={15} /> E-Way JSON
-          </button>
-          <button className="btn btn-secondary" onClick={() => router.push(`/sales/${id}/edit`)} style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <Icons.Edit size={15} /> Edit
+          <button className="btn btn-secondary" onClick={() => router.push(`/purchases/${id}/edit`)} style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <Icons.Edit size={15} /> Edit Bill
           </button>
           <button className="btn btn-primary" onClick={handleDownloadPDF} disabled={downloading} style={{ display:'flex', alignItems:'center', gap:6 }}>
             <Icons.Download size={15} /> {downloading ? 'Generating...' : 'Download PDF'}
@@ -190,83 +101,48 @@ export default function InvoiceDetailPage() {
 
       {/* Status Row */}
       <div className="no-print" style={{ marginBottom:'var(--space-4)', display:'flex', gap:'var(--space-3)', flexWrap:'wrap', alignItems:'center' }}>
-        {invoice.payment_status === 'paid' && <span className="badge badge-paid" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>Paid in Full</span>}
-        {invoice.payment_status === 'partial' && <span className="badge badge-partial" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>Partial — {formatINR(invoice.amount_paid)} received</span>}
-        {invoice.payment_status === 'unpaid' && <span className="badge badge-unpaid" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>{formatINR(invoice.grand_total)} due</span>}
+        {invoice.payment_status === 'paid' && <span className="badge badge-paid" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>Fully Paid</span>}
+        {invoice.payment_status === 'partial' && <span className="badge badge-partial" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>Partial — {formatINR(invoice.amount_paid)} paid</span>}
+        {invoice.payment_status === 'unpaid' && <span className="badge badge-unpaid" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>{formatINR(invoice.grand_total)} outstanding</span>}
         <span className="badge badge-secondary" style={{ fontSize:'0.85rem', padding:'6px 12px', textTransform:'capitalize' }}>{invoice.supply_type}</span>
-        {(invoice as any).cash_discount > 0 && <span className="badge badge-warning" style={{ fontSize:'0.85rem', padding:'6px 12px' }}>Disc: {formatINR((invoice as any).cash_discount)}</span>}
       </div>
 
 
-      {/* Cash Discount Panel */}
-      {showDiscount && (
-        <div className="card no-print" style={{ marginBottom:'var(--space-4)', borderColor:'rgba(245,158,11,0.3)', background:'rgba(245,158,11,0.04)' }}>
-          <h3 style={{ fontSize:'0.9rem', fontWeight:700, marginBottom:'var(--space-3)', color:'var(--brand-warning)' }}>Apply Cash Discount</h3>
-          <p style={{ fontSize:'0.8rem', color:'var(--text-muted)', marginBottom:'var(--space-3)' }}>
-            The discount will be proportionally distributed across all line items. GST will recalculate on the reduced taxable value.
-          </p>
-          <div style={{ display:'flex', gap:'var(--space-3)', flexWrap:'wrap' }}>
-            <div className="form-group" style={{ flex:'1 1 160px' }}>
-              <label className="form-label">Discount Amount (₹)</label>
-              <input className="form-input" type="number" min="0" step="0.01" value={discountAmt} onChange={e=>setDiscountAmt(e.target.value)} placeholder="e.g. 500" />
-            </div>
-            <div className="form-group" style={{ flex:'2 1 200px' }}>
-              <label className="form-label">Reason / Note</label>
-              <input className="form-input" value={discountNote} onChange={e=>setDiscountNote(e.target.value)} placeholder="e.g. Early payment discount" />
-            </div>
-            <div style={{ display:'flex', alignItems:'flex-end', gap:'var(--space-2)' }}>
-              <button className="btn btn-primary" onClick={applyDiscount} disabled={applyingDiscount || !discountAmt} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <Icons.Check size={15} />{applyingDiscount ? 'Applying...' : 'Apply Discount'}
-              </button>
-              <button className="btn btn-ghost" onClick={() => setShowDiscount(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Professional Invoice Print & Preview View */}
+      {/* Professional Purchase Bill View */}
       <div className="invoice-container" id="invoice-print">
-        {/* Master Table for Multi-page Page Header Repetition */}
         <table className="invoice-master-table">
           <thead>
             <tr>
               <td>
                 <div className="invoice-box no-border-bottom">
-                  {/* Title */}
                   <div className="invoice-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: branding.showLogo && profile?.logo_url ? 80 : 'auto' }}>
                     {branding.showLogo && profile?.logo_url && (
                       <div className="invoice-logo-wrap" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}>
                         <img src={profile.logo_url} alt="Logo" className="invoice-logo" />
                       </div>
                     )}
-                    <div className="invoice-header-title">{branding.title || 'TAX INVOICE'}</div>
+                    <div className="invoice-header-title">{branding.title || 'PURCHASE BILL / INWARD INVOICE'}</div>
                     {branding.subtitle && <div className="invoice-header-subtitle" style={{ position: 'absolute', right: 10, fontSize: '0.7rem', color: '#64748b' }}>{branding.subtitle}</div>}
                   </div>
 
-                  {/* Business & Details Section */}
                   <div className="invoice-grid-2">
                     <div className="invoice-info-box border-right">
-                      <div className="label-sm">Consignor (Seller)</div>
-                      <div className="business-main-name">{profile?.business_name}</div>
-                      <div className="text-sm">{profile?.address}</div>
-                      <div className="text-sm">{profile?.city}, {profile?.state_name} - {profile?.pincode}</div>
-                      <div className="text-sm">GSTIN/UIN: <strong>{profile?.gstin}</strong></div>
-                      <div className="text-sm">State Name: {profile?.state_name}, Code: {profile?.state_code}</div>
-                      {profile?.phone && <div className="text-sm">Contact: {profile.phone}</div>}
+                      <div className="label-sm">Consignor (Vendor/Supplier)</div>
+                      <div className="business-main-name">{invoice.customer_name || 'Walk-in Vendor'}</div>
+                      <div className="text-sm">GSTIN/UIN: <strong>{invoice.customer_gstin || 'N/A'}</strong></div>
+                      <div className="text-sm">State Name: {getStateName(invoice.customer_state_code || (invoice.supply_type === 'intrastate' ? profile?.state_code : null))}</div>
+                      <div className="text-sm">Code: {invoice.customer_state_code || (invoice.supply_type === 'intrastate' ? profile?.state_code : 'N/A')}</div>
                     </div>
                     <div className="invoice-info-box">
                       <div className="grid-details">
                         <div className="detail-item border-bottom">
-                          <div className="label-xs">Invoice No.</div>
+                          <div className="label-xs">Bill/Invoice No.</div>
                           <div className="value-sm"><strong>{invoice.invoice_number}</strong></div>
                         </div>
                         <div className="detail-item border-bottom">
                           <div className="label-xs">Dated</div>
                           <div className="value-sm"><strong>{format(new Date(invoice.invoice_date), 'dd-MMM-yyyy')}</strong></div>
-                        </div>
-                        <div className="detail-item border-bottom">
-                          <div className="label-xs">Mode/Terms of Payment</div>
-                          <div className="value-sm">{invoice.payment_method}</div>
                         </div>
                         <div className="detail-item border-bottom">
                           <div className="label-xs">Place of Supply</div>
@@ -278,13 +154,12 @@ export default function InvoiceDetailPage() {
                     </div>
                   </div>
 
-                  {/* Consignee Section */}
                   <div className="invoice-info-box border-top border-bottom">
-                    <div className="label-sm">Consignee (Buyer)</div>
-                    <div className="business-sub-name">{invoice.customer_name || 'Walk-in Customer'}</div>
-                    {invoice.customer_gstin && <div className="text-sm">GSTIN/UIN: <strong>{invoice.customer_gstin}</strong></div>}
-                    <div className="text-sm">State Name: {getStateName(invoice.customer_state_code || (invoice.supply_type === 'intrastate' ? profile?.state_code : null))}</div>
-                    <div className="text-sm">Code: {invoice.customer_state_code || (invoice.supply_type === 'intrastate' ? profile?.state_code : 'N/A')}</div>
+                    <div className="label-sm">Consignee (Buyer - Our Business)</div>
+                    <div className="business-sub-name">{profile?.business_name}</div>
+                    <div className="text-sm">{profile?.address}</div>
+                    <div className="text-sm">{profile?.city}, {profile?.state_name} - {profile?.pincode}</div>
+                    <div className="text-sm">GSTIN: <strong>{profile?.gstin}</strong></div>
                   </div>
                 </div>
               </td>
@@ -318,7 +193,7 @@ export default function InvoiceDetailPage() {
                           <td style={{ textAlign:'right', fontWeight: 600, whiteSpace:'nowrap' }}>{formatNumber(item.total_amount)}</td>
                         </tr>
                       ))}
-                      {/* Spacer rows */}
+                      {/* Spacer rows with individual TDs to maintain grid lines */}
                       {[...Array(Math.max(0, 10 - items.length))].map((_, i) => (
                         <tr key={`space-${i}`} className="spacer-row">
                           <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
@@ -361,7 +236,7 @@ export default function InvoiceDetailPage() {
                     {/* Math Summary & Tax Breakdown */}
                     <div className="invoice-grid-2 border-top">
                       <div className="invoice-info-box border-right">
-                        <div className="label-sm">Amount Chargeable (in words)</div>
+                        <div className="label-sm">Total in Words</div>
                         <div className="text-sm" style={{ fontWeight:700, textTransform:'capitalize' }}>Indian Rupees {numberToWords(invoice.grand_total)} Only</div>
                         
                         <div className="tax-summary-box border-top" style={{ marginTop: 10 }}>
@@ -398,21 +273,10 @@ export default function InvoiceDetailPage() {
                            {(invoice.cash_discount || 0) > 0 && ` - Cash Discount ${formatINR(invoice.cash_discount)}`}
                            {` = `} <strong>{formatINR(invoice.grand_total)}</strong>
                         </div>
-
-                        {profile?.bank_name && (
-                          <div style={{ marginTop: 10 }}>
-                            <div className="label-xs">Bank Details</div>
-                            <div className="text-xs">Bank: {profile.bank_name} | A/c No: {profile.bank_account}</div>
-                            <div className="text-xs">Branch & IFSC: {profile.bank_ifsc}</div>
-                          </div>
-                        )}
                       </div>
                       <div className="invoice-info-box" style={{ textAlign:'right', display:'flex', flexDirection:'column', justifyContent:'space-between', paddingBottom: 0 }}>
-                         <div>
-                            <div className="text-xs">E. & O.E.</div>
-                         </div>
-                         <div>
-                            <div className="label-xs">for {profile?.business_name}</div>
+                         <div style={{ marginTop: 20 }}>
+                            <div className="label-xs">Receiver's Signature</div>
                             <div className="signature-space" style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 20 }}>
                                {branding.showSignature && branding.showDigitalSignature && profile?.signature_url && (
                                  <img src={profile.signature_url} alt="Signature" className="invoice-signature" />
@@ -420,6 +284,7 @@ export default function InvoiceDetailPage() {
                             </div>
                             <div className="label-sm">Authorised Signatory</div>
                          </div>
+                         <div className="text-xs" style={{ marginTop: 10 }}>E. & O.E.</div>
                       </div>
                     </div>
                   </div>
@@ -427,10 +292,6 @@ export default function InvoiceDetailPage() {
              </tr>
           </tfoot>
         </table>
-        
-        <div className="no-print" style={{ textAlign:'center', fontSize:'0.7rem', color:'var(--text-muted)', marginTop: 15 }}>
-          This is a Computer Generated Invoice
-        </div>
       </div>
 
       <style>{`
@@ -508,6 +369,7 @@ export default function InvoiceDetailPage() {
           .label-xs { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
           .value-sm { font-size: 0.85rem; color: #1e293b; font-weight: 600; }
           .business-main-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; color: #1e293b; }
+          .business-sub-name { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
           .text-sm { font-size: 0.8rem; color: #334155; margin-bottom: 2px; }
           
           .invoice-item-table { width:100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #1e293b; color: #1e293b; }

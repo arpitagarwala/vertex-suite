@@ -86,6 +86,16 @@ export function formatINR(amount: number): string {
 }
 
 /**
+ * Format number in Indian format 1,23,456.00 (no symbol)
+ */
+export function formatNumber(n: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(n)
+}
+
+/**
  * Convert number to words (for invoice totals)
  */
 export function numberToWords(num: number): string {
@@ -158,3 +168,14 @@ export const INDIAN_STATES = [
   { code: '36', name: 'Telangana' },
   { code: '37', name: 'Andhra Pradesh' },
 ]
+
+/**
+ * Get the state name from a GST state code
+ */
+export function getStateName(code: string | null | undefined): string {
+  if (!code || code === 'N/A') return 'N/A'
+  // Handle numeric or string codes by ensuring string 2-char format
+  const searchCode = String(code).padStart(2, '0')
+  const state = INDIAN_STATES.find(s => s.code === searchCode)
+  return state ? state.name : `State (${code})`
+}

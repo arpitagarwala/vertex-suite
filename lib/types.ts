@@ -10,6 +10,67 @@ export type LocationType = 'warehouse' | 'cf_agent' | 'retail' | 'transit'
 export type MovementType = 'purchase' | 'sale' | 'transfer_in' | 'transfer_out' | 'adjustment' | 'return'
 export type TransferStatus = 'pending' | 'in_transit' | 'completed' | 'cancelled'
 
+// ── Invoice Customization Settings ──────────────────────────
+export interface InvoiceBrandingSettings {
+  showLogo: boolean
+  title: string        // 'TAX INVOICE' | 'PURCHASE BILL' | custom
+  subtitle: string
+  showSignature: boolean
+  showDigitalSignature: boolean
+  showSeal: boolean
+}
+
+export interface InvoiceLayoutSettings {
+  showGSTIN: boolean
+  showBuyerAddress: boolean
+  showShippingAddress: boolean
+  showHSN: boolean
+  showPAN: boolean
+  showBankDetails: boolean
+  showAmountInWords: boolean
+  showTaxBreakdown: boolean
+  showBuyerOrderNo: boolean
+  showTransportDetails: boolean
+}
+
+export interface InvoicePrintingSettings {
+  paperSize: 'a4' | 'a5'
+  compactMode: boolean
+}
+
+export interface InvoiceSettings {
+  branding: InvoiceBrandingSettings
+  layout: InvoiceLayoutSettings
+  printing: InvoicePrintingSettings
+}
+
+export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
+  branding: {
+    showLogo: false,
+    title: 'TAX INVOICE',
+    subtitle: '',
+    showSignature: true,
+    showDigitalSignature: false,
+    showSeal: false,
+  },
+  layout: {
+    showGSTIN: true,
+    showBuyerAddress: true,
+    showShippingAddress: false,
+    showHSN: true,
+    showPAN: false,
+    showBankDetails: true,
+    showAmountInWords: true,
+    showTaxBreakdown: true,
+    showBuyerOrderNo: false,
+    showTransportDetails: false,
+  },
+  printing: {
+    paperSize: 'a4',
+    compactMode: false,
+  },
+}
+
 export interface Profile {
   id: string
   business_name: string
@@ -29,6 +90,8 @@ export interface Profile {
   bank_branch?: string
   enable_cnf?: boolean
   logo_url: string | null
+  signature_url?: string | null
+  invoice_settings?: InvoiceSettings
   currency: string
   financial_year_start: number
   created_at: string
@@ -172,6 +235,14 @@ export interface Invoice {
   cash_discount_note?: string
   edit_count?: number
   last_edited_at?: string
+  // Optional fields (shown when enabled in invoice_settings)
+  shipping_address?: string
+  shipping_city?: string
+  shipping_state?: string
+  shipping_pincode?: string
+  buyer_order_no?: string
+  transport_mode?: string
+  vehicle_no?: string
   created_at: string
   // Joins
   customer?: Customer

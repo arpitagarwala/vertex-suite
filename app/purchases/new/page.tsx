@@ -6,7 +6,8 @@ import { calculateItemGST, calculateInvoiceTotals, formatINR } from '@/lib/gst'
 import { useDraft } from '@/lib/useDraft'
 import { Icons } from '@/components/Icons'
 import { SearchableSelect } from '@/components/SearchableSelect'
-import type { Product, Customer, Location, InvoiceItem } from '@/lib/types'
+import type { Product, Customer, Location, InvoiceItem, InvoiceSettings } from '@/lib/types'
+import { DEFAULT_INVOICE_SETTINGS } from '@/lib/types'
 
 interface LineItem extends InvoiceItem { _key: string; priceMode: 'exclusive' | 'inclusive'; enteredPrice: number }
 
@@ -26,7 +27,9 @@ const defaultForm = {
   customer_state_code: '', customer_phone: '', customer_address: '', supply_type: 'intrastate',
   invoice_date: new Date().toISOString().split('T')[0],
   payment_status: 'paid', amount_paid: '', notes: '',
-  location_id: '', bill_number: ''
+  location_id: '', bill_number: '',
+  shipping_address: '', shipping_city: '', shipping_state: '', shipping_pincode: '',
+  buyer_order_no: '', transport_mode: '', vehicle_no: '',
 }
 
 export default function NewPurchasePage() {
@@ -36,7 +39,7 @@ export default function NewPurchasePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Customer[]>([])
   const [locations, setLocations] = useState<Location[]>([])
-  const [userProfile, setUserProfile] = useState<{ state_code: string; enable_cnf?: boolean }>({ state_code: '27', enable_cnf: true })
+  const [userProfile, setUserProfile] = useState<{ state_code: string; enable_cnf?: boolean; invoice_settings?: InvoiceSettings }>({ state_code: '27', enable_cnf: true })
   const [items, setItems, clearItemsDraft] = useDraft<LineItem[]>('purchase_items', [defaultItem()])
   const [form, setForm, clearFormDraft] = useDraft('purchase_form', defaultForm)
   const [hasDraft, setHasDraft] = useState(false)
@@ -51,12 +54,18 @@ export default function NewPurchasePage() {
         supabase.from('products').select('*').eq('user_id', user.id).eq('is_active', true),
         supabase.from('customers').select('*').eq('user_id', user.id).order('name'),
         supabase.from('locations').select('*').eq('user_id', user.id).eq('is_active', true),
-        supabase.from('profiles').select('state_code, enable_cnf').eq('id', user.id).single(),
+        supabase.from('profiles').select('state_code, enable_cnf, invoice_settings').eq('id', user.id).single(),
       ])
       setProducts(prods || [])
       setSuppliers(custs || [])
       setLocations(locs || [])
-      if (profile) setUserProfile(profile)
+      if (profile) {
+        setUserProfile(profile)
+        // Default supplier state code for walk-ins if not already set
+        if (!form.customer_state_code) {
+          setForm(f => ({ ...f, customer_state_code: profile.state_code }))
+        }
+      }
       if (locs?.[0] && !form.location_id) setForm(f => ({ ...f, location_id: locs[0].id }))
     }
     load()
@@ -135,7 +144,10 @@ export default function NewPurchasePage() {
       total_gst: totals.totalGST, grand_total: totals.grandTotal,
       amount_paid: parseFloat(form.amount_paid) || (form.payment_status === 'paid' ? totals.grandTotal : 0),
       payment_status: form.payment_status, location_id: form.location_id || null, notes: form.notes,
-      status: 'active'
+      status: 'active',
+      shipping_address: form.shipping_address || '', shipping_city: form.shipping_city || '',
+      shipping_state: form.shipping_state || '', shipping_pincode: form.shipping_pincode || '',
+      buyer_order_no: form.buyer_order_no || '', transport_mode: form.transport_mode || '', vehicle_no: form.vehicle_no || '',
     }).select().single()
 
     if (error) { alert(error.message); setLoading(false); return }
@@ -237,6 +249,38 @@ export default function NewPurchasePage() {
                 </div>
               )}
             </div>
+
+            {/* Conditional fields based on invoice_settings */}
+            {(() => {
+              const s = { ...DEFAULT_INVOICE_SETTINGS.layout, ...(userProfile.invoice_settings?.layout || {}) }
+              return (
+                <>
+                  {s.showShippingAddress && (
+                    <div style={{ marginTop:'var(--space-3)' }}>
+                      <div style={{ fontSize:'0.8rem', fontWeight:600, color:'var(--text-muted)', marginBottom:'var(--space-2)', textTransform:'uppercase', letterSpacing:'0.05em' }}>Shipping Address</div>
+                      <div className="grid grid-1 md:grid-3 gap-4">
+                        <div className="form-group" style={{ gridColumn: 'span 3' }}><label className="form-label">Shipping Address</label><input className="form-input" value={form.shipping_address} onChange={e => setForm(f => ({ ...f, shipping_address: e.target.value }))} placeholder="Delivery address..." /></div>
+                        <div className="form-group"><label className="form-label">City</label><input className="form-input" value={form.shipping_city} onChange={e => setForm(f => ({ ...f, shipping_city: e.target.value }))} /></div>
+                        <div className="form-group"><label className="form-label">State</label><input className="form-input" value={form.shipping_state} onChange={e => setForm(f => ({ ...f, shipping_state: e.target.value }))} /></div>
+                        <div className="form-group"><label className="form-label">Pincode</label><input className="form-input" value={form.shipping_pincode} onChange={e => setForm(f => ({ ...f, shipping_pincode: e.target.value }))} maxLength={6} /></div>
+                      </div>
+                    </div>
+                  )}
+                  {s.showBuyerOrderNo && (
+                    <div className="form-group" style={{ marginTop:'var(--space-2)' }}>
+                      <label className="form-label">Purchase Order No.</label>
+                      <input className="form-input" value={form.buyer_order_no} onChange={e => setForm(f => ({ ...f, buyer_order_no: e.target.value }))} placeholder="PO-12345" />
+                    </div>
+                  )}
+                  {s.showTransportDetails && (
+                    <div className="grid grid-1 md:grid-2 gap-4" style={{ marginTop:'var(--space-2)' }}>
+                      <div className="form-group"><label className="form-label">Transport Mode</label><input className="form-input" value={form.transport_mode} onChange={e => setForm(f => ({ ...f, transport_mode: e.target.value }))} placeholder="Road / Rail / Air / Ship" /></div>
+                      <div className="form-group"><label className="form-label">Vehicle No.</label><input className="form-input" value={form.vehicle_no} onChange={e => setForm(f => ({ ...f, vehicle_no: e.target.value }))} placeholder="MH-12-AB-1234" /></div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           {/* Line Items */}
