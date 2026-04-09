@@ -88,7 +88,7 @@ async function loadImageAsBase64(url: string, maxW = 200, maxH = 80): Promise<st
 }
 
 // ── Main Export ──────────────────────────────────────────────
-export async function downloadInvoicePDF(data: PDFInvoiceData) {
+export async function generateInvoicePDF(data: PDFInvoiceData) {
   const { invoice, items, profile, titleOverride } = data
   const s: InvoiceSettings = {
     branding: { ...DEFAULT_INVOICE_SETTINGS.branding, ...(profile.invoice_settings?.branding || {}) },
