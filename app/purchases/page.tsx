@@ -62,7 +62,7 @@ function PurchasesPageContent() {
       const settings = (profile as any)?.invoice_settings
       
       const { generateInvoicePDF } = await import('@/lib/pdf')
-      await generateInvoicePDF({ invoice: inv, items: items || [], profile: profile as any, titleOverride: 'PURCHASE BILL' }, settings)
+      await generateInvoicePDF({ invoice: inv, items: items || [], profile: profile as any, titleOverride: 'PURCHASE BILL' })
     } catch (err) {
       console.error('Download failed:', err)
       alert('Failed to download PDF')
