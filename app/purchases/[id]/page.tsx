@@ -223,7 +223,7 @@ export default function PurchaseDetailPage() {
                         {(invoice.cash_discount || 0) > 0 && (
                           <tr className="discount-row" style={{ fontSize: '9pt', color: 'red' }}>
                             <td style={{ width: '85%', textAlign:'right', fontWeight: 600 }}>Less: Cash Discount</td>
-                            <td style={{ width: '15%', textAlign:'right', fontWeight: 600 }}>(-) {formatNumber(invoice.cash_discount)}</td>
+                            <td style={{ width: '15%', textAlign:'right', fontWeight: 600 }}>(-) {formatNumber(invoice.cash_discount || 0)}</td>
                           </tr>
                         )}
                         <tr className="total-row">

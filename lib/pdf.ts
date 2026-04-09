@@ -435,7 +435,7 @@ export async function downloadInvoicePDF(data: PDFInvoiceData) {
         // Show Discount Row
         doc.setTextColor(200, 0, 0) // Reddish for discount
         textR(doc, 'Less: Cash Discount', labelX - 2, y + ROW - 1.5)
-        textR(doc, '(-) ' + formatNumber(invoice.cash_discount), M.left + CW - 2, y + ROW - 1.5)
+        textR(doc, '(-) ' + formatNumber(invoice.cash_discount || 0), M.left + CW - 2, y + ROW - 1.5)
         vline(doc, labelX, y, y + ROW)
         y += ROW
         hline(doc, M.left, y, CW)
