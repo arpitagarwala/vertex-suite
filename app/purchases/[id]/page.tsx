@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatINR, numberToWords, formatNumber, getStateName } from '@/lib/gst'
 import { Icons } from '@/components/Icons'
 import { format } from 'date-fns'
-import { downloadInvoicePDF } from '@/lib/pdf'
+import { generateInvoicePDF } from '@/lib/pdf'
 import type { Invoice, InvoiceItem, Profile } from '@/lib/types'
 import { DEFAULT_INVOICE_SETTINGS } from '@/lib/types'
 
@@ -42,7 +42,7 @@ export default function PurchaseDetailPage() {
     if (!invoice || !profile) return
     setDownloading(true)
     try {
-      await downloadInvoicePDF({ invoice, items, profile, titleOverride: 'PURCHASE BILL' })
+      await generateInvoicePDF({ invoice, items, profile, titleOverride: 'PURCHASE BILL' })
     } catch (e) {
       console.error('PDF generation failed:', e)
       alert('Failed to generate PDF. Please try again.')
