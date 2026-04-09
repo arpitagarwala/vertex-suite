@@ -270,7 +270,7 @@ export default function PurchaseDetailPage() {
                         {/* One-line math summary for manual matching */}
                         <div className="math-summary-line" style={{ marginTop: 12, paddingTop: 6, borderTop: '1px dashed #ccc', fontSize: '0.75rem', color: '#000' }}>
                            <strong>Calculation:</strong> Items Total (Tax Incl.) {formatINR(items.reduce((s, i) => s + i.total_amount, 0))} 
-                           {(invoice.cash_discount || 0) > 0 && ` - Cash Discount ${formatINR(invoice.cash_discount)}`}
+                           {(invoice.cash_discount || 0) > 0 && ` - Cash Discount ${formatINR(invoice.cash_discount || 0)}`}
                            {` = `} <strong>{formatINR(invoice.grand_total)}</strong>
                         </div>
                       </div>
