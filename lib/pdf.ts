@@ -7,7 +7,7 @@
  */
 import { jsPDF } from 'jspdf'
 import { numberToWords, formatNumber, getStateName } from '@/lib/gst'
-import type { Invoice, InvoiceItem, Profile, InvoiceSettings, Customer } from '@/lib/types'
+import type { Invoice, InvoiceItem, Profile, InvoiceSettings, Customer, Payment } from '@/lib/types'
 import { DEFAULT_INVOICE_SETTINGS } from '@/lib/types'
 import { format } from 'date-fns'
 
@@ -33,6 +33,7 @@ interface PDFInvoiceData {
 export interface PDFStatementData {
   contact: Customer
   invoices: Invoice[]
+  payments: Payment[]
   profile: Profile
 }
 
@@ -594,17 +595,18 @@ export async function generateInvoicePDF(data: PDFInvoiceData) {
  * ── Generate Contact Statement (Ledger) PDF ──
  */
 export async function generateContactStatementPDF(data: PDFStatementData) {
-  const { contact, invoices, profile } = data
+  const { contact, invoices, payments, profile } = data
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const M = TALLY_MARGIN
   const CW = A4.w - M.left - M.right
   const PW = A4.w
   const PH = A4.h
 
-  // Sort invoices by date
-  const sortedInvoices = [...invoices].sort((a, b) => 
-    new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime()
-  )
+  // Merge and sort transactions
+  const txns = [
+    ...invoices.map(i => ({ type: i.invoice_type, date: i.invoice_date, ref: i.invoice_number, amount: Number(i.grand_total), isInvoice: true })),
+    ...payments.map(p => ({ type: 'payment', date: p.payment_date, ref: p.reference_no || 'Payment', amount: Number(p.amount), isInvoice: false, pType: p.payment_type }))
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   let y = M.top
   doc.setTextColor(0,0,0)
@@ -616,13 +618,13 @@ export async function generateContactStatementPDF(data: PDFStatementData) {
   y += 10
   hline(doc, M.left, y, CW)
 
-  // Two columns for Company and Contact info
+  // Info Section
   const colW = CW / 2
   let ly = y + 5
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
-  doc.text('Company:', M.left + 2, ly)
-  doc.text('Contact Details:', M.left + colW + 2, ly)
+  doc.text('Business Details:', M.left + 2, ly)
+  doc.text('Account Of:', M.left + colW + 2, ly)
   ly += 4
   
   doc.setFontSize(10)
@@ -636,36 +638,27 @@ export async function generateContactStatementPDF(data: PDFStatementData) {
   doc.text(`GSTIN: ${contact.gstin || 'N/A'}`, M.left + colW + 2, ly)
   ly += 4
   
-  if (profile.phone || contact.phone) {
-    doc.text(`Phone: ${profile.phone || ''}`, M.left + 2, ly)
-    doc.text(`Phone: ${contact.phone || ''}`, M.left + colW + 2, ly)
-    ly += 4
-  }
-
   y = ly + 2
   hline(doc, M.left, y, CW)
-  vline(doc, M.left + colW, y - (ly - y + 15), y) // Divider
-  
-  // Statement Summary
   y += 5
+  
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
-  const dateRange = sortedInvoices.length > 0 
-    ? `${format(new Date(sortedInvoices[0].invoice_date), 'dd MMM yyyy')} to ${format(new Date(sortedInvoices[sortedInvoices.length-1].invoice_date), 'dd MMM yyyy')}`
+  const dateRange = txns.length > 0 
+    ? `${format(new Date(txns[0].date), 'dd MMM yyyy')} to ${format(new Date(txns[txns.length-1].date), 'dd MMM yyyy')}`
     : 'No transactions'
   doc.text(`Period: ${dateRange}`, M.left + 2, y)
   y += 5
   hline(doc, M.left, y, CW)
 
   // Table Headers
-  const cols = [0.12, 0.38, 0.15, 0.15, 0.20] // Date, Particulars, Type, Amount, Balance
+  const cols = [0.12, 0.35, 0.13, 0.20, 0.20] 
   const cw = cols.map(c => c * CW)
-  
   doc.setFontSize(7)
   let cx = M.left
-  const headers = ['Date', 'Particulars', 'Vch Type', 'Amount (Rs)', 'Balance (Rs)']
+  const headers = ['Date', 'Reference #', 'Type', 'Due Date / Info', 'Amount (Rs)']
   for (let i = 0; i < headers.length; i++) {
-    const a = i >= 3 ? 'right' : i === 0 ? 'left' : 'center'
+    const a = i >= 4 ? 'right' : i === 0 ? 'left' : 'center'
     const tx = a === 'right' ? cx + cw[i] - 2 : a === 'center' ? cx + cw[i] / 2 : cx + 2
     doc.text(headers[i], tx, y + ROW - 1.5, { align: a as any })
     cx += cw[i]
@@ -676,48 +669,73 @@ export async function generateContactStatementPDF(data: PDFStatementData) {
   // Table Body
   doc.setFont('helvetica', 'normal')
   let balance = 0
+  const isCust = contact.customer_type !== 'vendor'
   
-  for (const inv of sortedInvoices) {
+  for (const t of txns) {
     if (y + ROW > PH - M.bottom - 20) {
       doc.addPage()
       y = M.top
       hline(doc, M.left, y, CW)
     }
 
-    const type = inv.invoice_type === 'sale' ? 'Sales' : 'Purchase'
-    const amt = inv.grand_total
+    // Color Logic: Sales/Receipts = Green, Purchases/Payments = Red
+    const isSale = t.type === 'sale'
+    const isPurchase = t.type === 'purchase'
+    const isReceipt = t.type === 'payment' && (t as any).pType === 'received'
+    const isPaymentOut = t.type === 'payment' && (t as any).pType === 'sent'
     
-    // Logic: Sales increase balance for us (debit), Purchases increase balance for them (credit)
-    // But let's keep it simple: Net Amount due from them.
-    if (inv.invoice_type === 'sale') {
-      balance += (inv.grand_total - (inv.amount_paid || 0))
+    const isGreen = isSale || isReceipt
+    const isRed = isPurchase || isPaymentOut
+
+    // Internal calculation for net summary at bottom
+    if (isCust) {
+       if (isSale) balance += t.amount
+       if (isReceipt) balance -= t.amount
     } else {
-      balance -= (inv.grand_total - (inv.amount_paid || 0))
+       if (isPurchase) balance -= t.amount
+       if (isPaymentOut) balance += t.amount
     }
 
     cx = M.left
+    const info = t.isInvoice ? format(new Date(t.date), 'dd/MM/yy') : ((t as any).pType === 'received' ? 'CASH/BANK' : 'CASH/BANK')
+    
+    // We update the txn mapping in the data prepare part so t.type is readable
     const cells = [
-      format(new Date(inv.invoice_date), 'dd-MM-yy'),
-      inv.invoice_number,
-      type,
-      fmtNum(amt),
-      fmtNum(balance)
+      format(new Date(t.date), 'dd-MM-yy'),
+      t.ref,
+      t.type.toUpperCase(),
+      info,
+      (isGreen ? '+' : '-') + fmtNum(t.amount)
     ]
 
     for (let i = 0; i < cells.length; i++) {
-      const a = i >= 3 ? 'right' : i === 0 ? 'left' : 'center'
+      const a = i >= 4 ? 'right' : i === 0 ? 'left' : 'center'
       const tx = a === 'right' ? cx + cw[i] - 2 : a === 'center' ? cx + cw[i] / 2 : cx + 2
+      
+      // Amount column Color
+      if (i === 4) {
+        doc.setTextColor(isGreen ? 30 : 180, isGreen ? 130 : 30, isGreen ? 30 : 30) // Greenish or Reddish
+        doc.setFont('helvetica', 'bold')
+      } else {
+        doc.setTextColor(0,0,0)
+        doc.setFont('helvetica', 'normal')
+      }
+      
       doc.text(cells[i], tx, y + ROW - 1.5, { align: a as any })
       cx += cw[i]
     }
     y += ROW
   }
 
-  // Final Balance
+  // Reset color
+  doc.setTextColor(0,0,0)
+
+  // Final Summary
   hline(doc, M.left, y, CW)
   doc.setFont('helvetica', 'bold')
-  textR(doc, 'Net Balance Due:', M.left + cw[0] + cw[1] + cw[2] + cw[3] - 2, y + ROW - 1.5)
-  textR(doc, 'Rs.' + fmtNum(balance), M.left + CW - 2, y + ROW - 1.5)
+  const status = balance > 0 ? 'Total Money to Receive:' : balance < 0 ? 'Total Money to Pay (Advance):' : 'Clear Balance:'
+  textR(doc, status, M.left + CW - cw[4] - 10, y + ROW - 1.5)
+  textR(doc, 'Rs.' + fmtNum(Math.abs(balance)), M.left + CW - 2, y + ROW - 1.5)
   y += ROW
   hline(doc, M.left, y, CW)
 

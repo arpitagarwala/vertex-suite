@@ -7,6 +7,8 @@ import { Icons } from '@/components/Icons'
 import { format } from 'date-fns'
 import type { Customer, Invoice, Profile } from '@/lib/types'
 import { generateContactStatementPDF } from '@/lib/pdf'
+import PaymentModal from './PaymentModal'
+import type { Payment } from '@/lib/types'
 
 interface Props {
   id: string
@@ -17,9 +19,11 @@ export default function ContactLedger({ id, type }: Props) {
   const supabase = createClient()
   const [contact, setContact] = useState<Customer | null>(null)
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -31,14 +35,16 @@ export default function ContactLedger({ id, type }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [contactRes, invoicesRes, profileRes] = await Promise.all([
+    const [contactRes, invoicesRes, paymentsRes, profileRes] = await Promise.all([
       supabase.from('customers').select('*').eq('id', id).single(),
       supabase.from('invoices').select('*').eq('customer_id', id).eq('status', 'active').order('invoice_date', { ascending: false }),
+      supabase.from('payments').select('*').eq('customer_id', id).order('payment_date', { ascending: false }),
       supabase.from('profiles').select('*').eq('id', user.id).single()
     ])
 
     setContact(contactRes.data)
     setInvoices(invoicesRes.data || [])
+    setPayments(paymentsRes.data || [])
     setProfile(profileRes.data)
     setLoading(false)
   }
@@ -47,31 +53,22 @@ export default function ContactLedger({ id, type }: Props) {
     inv.invoice_number.toLowerCase().includes(search.toLowerCase())
   )
 
-  const stats = invoices.reduce((acc, inv) => {
-    const isSale = inv.invoice_type === 'sale'
-    const amt = Number(inv.grand_total) || 0
-    const paid = Number(inv.amount_paid) || 0
-    const due = amt - paid
+  const stats = {
+    billed: invoices.filter(i => i.invoice_type === 'sale').reduce((s, i) => s + Number(i.grand_total), 0),
+    collected: payments.filter(p => p.payment_type === 'received').reduce((s, p) => s + Number(p.amount), 0),
+    purchased: invoices.filter(i => i.invoice_type === 'purchase').reduce((s, i) => s + Number(i.grand_total), 0),
+    paidOut: payments.filter(p => p.payment_type === 'sent').reduce((s, p) => s + Number(p.amount), 0),
+  }
 
-    if (isSale) {
-      acc.billed += amt
-      acc.received += paid
-      acc.due += due
-    } else {
-      acc.purchased += amt
-      acc.paidToVendor += paid
-      acc.dueToVendor += due
-    }
-    return acc
-  }, { billed: 0, received: 0, due: 0, purchased: 0, paidToVendor: 0, dueToVendor: 0 })
-
-  const netBalance = (stats.due - stats.dueToVendor)
+  const netBalance = type === 'customer' 
+    ? (stats.billed - stats.collected) 
+    : (stats.paidOut - stats.purchased)
 
   async function handleDownloadStatement() {
-    if (!contact || !invoices.length || !profile) return
+    if (!contact || (!invoices.length && !payments.length) || !profile) return
     setDownloading(true)
     try {
-      await generateContactStatementPDF({ contact, invoices, profile })
+      await generateContactStatementPDF({ contact, invoices, payments, profile })
     } catch (err) {
       console.error(err)
       alert('Failed to generate statement')
@@ -133,7 +130,10 @@ export default function ContactLedger({ id, type }: Props) {
             )}
           </div>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 12 }}>
+           <button className="btn btn-primary" onClick={() => setShowPaymentModal(true)}>
+              <Icons.Plus size={15} /> Record {type === 'customer' ? 'Receipt' : 'Payment'}
+           </button>
            <button className="btn btn-secondary" onClick={handleDownloadStatement} disabled={downloading}>
               <Icons.Download size={15} /> {downloading ? 'Generating...' : 'Download Statement'}
            </button>
@@ -151,18 +151,18 @@ export default function ContactLedger({ id, type }: Props) {
         </div>
         
         <div className="stat-card" style={{ '--accent-color': 'var(--brand-success)' } as any}>
-          <div className="stat-label">Total Paid</div>
-          <div className="stat-value">{formatINR(type === 'customer' ? stats.received : stats.paidToVendor)}</div>
+          <div className="stat-label">Total {type === 'customer' ? 'Received' : 'Paid'}</div>
+          <div className="stat-value">{formatINR(type === 'customer' ? stats.collected : stats.paidOut)}</div>
           <div className="stat-subtext" style={{ color: 'var(--brand-success)' }}>
-             Completed payments
+             From {payments.length} payments
           </div>
         </div>
 
-        <div className="stat-card" style={{ '--accent-color': netBalance >= 0 ? 'var(--brand-danger)' : 'var(--brand-success)' } as any}>
-          <div className="stat-label">{netBalance >= 0 ? 'Outstanding Balance' : 'Advance Balance'}</div>
+        <div className="stat-card" style={{ '--accent-color': netBalance > 0 ? 'var(--brand-success)' : netBalance < 0 ? 'var(--brand-danger)' : 'inherit' } as any}>
+          <div className="stat-label">{netBalance > 0 ? 'Money to Receive' : netBalance < 0 ? 'Advance Balance' : 'Clear Balance'}</div>
           <div className="stat-value">{formatINR(Math.abs(netBalance))}</div>
-          <div className="stat-subtext" style={{ color: netBalance >= 0 ? 'var(--brand-danger)' : 'var(--brand-success)' }}>
-            {netBalance >= 0 ? 'Receivable from them' : 'Payable to them'}
+          <div className="stat-subtext" style={{ color: netBalance > 0 ? 'var(--brand-success)' : 'var(--brand-danger)' }}>
+            {netBalance > 0 ? 'Receivable (Asset)' : netBalance < 0 ? 'Payable (Liability)' : 'Balanced'}
           </div>
         </div>
       </div>
@@ -192,65 +192,62 @@ export default function ContactLedger({ id, type }: Props) {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Invoice #</th>
+                <th>Reference #</th>
                 <th>Type</th>
-                <th style={{ textAlign: 'right' }}>Amt (Incl. Tax)</th>
-                <th style={{ textAlign: 'right' }}>Net Outstanding</th>
-                <th style={{ textAlign: 'right' }}>Running Balance</th>
+                <th>Due Date / Info</th>
+                <th style={{ textAlign: 'right' }}>Status</th>
+                <th style={{ textAlign: 'right' }}>Amount</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {(() => {
-                // Calculate running balance chronologically
-                const chronological = [...filtered].sort((a,b) => 
-                  new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime()
-                )
-                let currentBal = 0
-                const balanceMap = new Map()
-                chronological.forEach(inv => {
-                  const net = inv.invoice_type === 'sale' 
-                    ? (inv.grand_total - (inv.amount_paid || 0))
-                    : -(inv.grand_total - (inv.amount_paid || 0))
-                  currentBal += net
-                  balanceMap.set(inv.id, currentBal)
-                })
+                // Merge and calculate running balance (backend only for net check, not displayed)
+                const transactions = [
+                  ...invoices.map(i => ({ type: 'invoice', date: i.invoice_date, ref: i.invoice_number, amount: Number(i.grand_total), data: i })),
+                  ...payments.map(p => ({ type: 'payment', date: p.payment_date, ref: p.reference_no || 'Receipt', amount: Number(p.amount), data: p }))
+                ].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-                return filtered.map(inv => {
-                  const netOutstanding = inv.invoice_type === 'sale'
-                    ? (inv.grand_total - (inv.amount_paid || 0))
-                    : -(inv.grand_total - (inv.amount_paid || 0))
+                return transactions.map((t, idx) => {
+                  const isInv = t.type === 'invoice'
+                  const isSale = isInv && (t.data as Invoice).invoice_type === 'sale'
+                  const isPurchase = isInv && (t.data as Invoice).invoice_type === 'purchase'
+                  const isReceipt = t.type === 'payment' && (t.data as Payment).payment_type === 'received'
+                  const isPaymentOut = t.type === 'payment' && (t.data as Payment).payment_type === 'sent'
+
+                  // NEW COLOR LOGIC REQUESTED BY USER:
+                  // "Since we receive that amount, so make it green" -> Sales/Receipts (Green)
+                  // "If we have to pay that amount, make it red" -> Purchases/Payments (Red)
+                  const isGreen = isSale || isReceipt
+                  const isRed = isPurchase || isPaymentOut
 
                   return (
-                    <tr key={inv.id}>
-                      <td>{format(new Date(inv.invoice_date), 'dd MMM yyyy')}</td>
+                    <tr key={idx}>
+                      <td>{format(new Date(t.date), 'dd MMM yyyy')}</td>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{inv.invoice_number}</div>
+                        <div style={{ fontWeight: 600 }}>{t.ref}</div>
+                        {t.type === 'payment' && (t.data as Payment).notes && <div style={{ fontSize:'0.7rem', color:'var(--text-muted)' }}>{(t.data as Payment).notes}</div>}
                       </td>
                       <td>
-                        <span className={`badge ${inv.invoice_type === 'sale' ? 'badge-primary' : 'badge-secondary'}`}>
-                          {inv.invoice_type?.toUpperCase()}
+                        <span className={`badge ${isGreen ? 'badge-success' : 'badge-danger'}`} style={{ color: '#fff' }}>
+                          {t.type === 'invoice' ? (t.data as Invoice).invoice_type?.toUpperCase() : 'PAYMENT'}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right' }}>{formatINR(inv.grand_total)}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: netOutstanding > 0 ? 'var(--brand-danger)' : netOutstanding < 0 ? 'var(--brand-success)' : 'inherit' }}>
-                        {formatINR(Math.abs(netOutstanding))}
-                        {netOutstanding !== 0 && (
-                          <span style={{ fontSize: '0.65rem', marginLeft: 4 }}>
-                            {netOutstanding > 0 ? 'DR' : 'CR'}
-                          </span>
+                      <td>
+                         {isInv ? format(new Date((t.data as Invoice).due_date || t.date), 'dd/MM/yyyy') : (t.data as Payment).payment_method?.toUpperCase()}
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize:'0.8rem' }}>
+                         {t.type === 'invoice' ? (t.data as Invoice).payment_status?.toUpperCase() : 'SETTLED'}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: isGreen ? 'var(--brand-success)' : 'var(--brand-danger)' }}>
+                        {isGreen ? '+' : '-'}{formatINR(t.amount)}
+                      </td>
+                      <td>
+                        {t.type === 'invoice' && (
+                          <Link href={`/${(t.data as Invoice).invoice_type === 'sale' ? 'sales' : 'purchases'}/` + (t.data as Invoice).id}>
+                            <button className="btn btn-ghost btn-sm" title="View"><Icons.Eye size={15} /></button>
+                          </Link>
                         )}
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                        {formatINR(Math.abs(balanceMap.get(inv.id)))}
-                        <span style={{ fontSize: '0.65rem', marginLeft: 4 }}>
-                          {balanceMap.get(inv.id) >= 0 ? 'DR' : 'CR'}
-                        </span>
-                      </td>
-                      <td>
-                        <Link href={`/${inv.invoice_type === 'sale' ? 'sales' : 'purchases'}/${inv.id}`}>
-                          <button className="btn btn-ghost btn-sm" title="View"><Icons.Eye size={15} /></button>
-                        </Link>
                       </td>
                     </tr>
                   )
@@ -260,6 +257,18 @@ export default function ContactLedger({ id, type }: Props) {
           </table>
         )}
       </div>
+
+      {showPaymentModal && (
+        <PaymentModal 
+          contact={contact} 
+          type={type} 
+          onClose={() => setShowPaymentModal(false)} 
+          onSuccess={() => {
+            setShowPaymentModal(false)
+            load()
+          }}
+        />
+      )}
     </div>
   )
 }
