@@ -241,11 +241,12 @@ export async function generateInvoicePDF(data: PDFInvoiceData) {
 
       // ── RIGHT: Invoice Details ──
       const rx = M.left + leftW
+      const finalPOSCode = invoice.customer_state_code || (invoice.supply_type === 'intrastate' ? profile.state_code : '')
       const detailRows: [string, string][] = [
         ['Invoice No.', invoice.invoice_number],
         ['Dated', format(new Date(invoice.invoice_date), 'dd-MMM-yyyy')],
         ['Mode/Terms of Payment', invoice.payment_method || ''],
-        ['Place of Supply', getStateName(invoice.customer_state_code) + ' (' + (invoice.customer_state_code || '') + ')'],
+        ['Place of Supply', getStateName(finalPOSCode) + (finalPOSCode ? ` (${finalPOSCode})` : '')],
       ]
       if (s.layout.showBuyerOrderNo && invoice.buyer_order_no) {
         detailRows.push(['Buyer\'s Order No.', invoice.buyer_order_no])
@@ -291,8 +292,10 @@ export async function generateInvoicePDF(data: PDFInvoiceData) {
           doc.setFont('helvetica', 'normal')
           by += 3.5
         }
-        if (invoice.customer_state_code) {
-          doc.text(`State Code: ${invoice.customer_state_code}`, M.left + 2, by)
+        if (finalPOSCode) {
+          doc.text(`State Name: ${getStateName(finalPOSCode)}`, M.left + 2, by)
+          by += 3.5
+          doc.text(`State Code: ${finalPOSCode}`, M.left + 2, by)
           by += 3.5
         }
 

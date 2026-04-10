@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getStateName } from '@/lib/gst'
 import { Icons } from '@/components/Icons'
 
 export default function SuppliersPage() {
@@ -93,7 +94,10 @@ export default function SuppliersPage() {
                     <span className="monospace" style={{ fontSize:'0.8rem', color:'var(--brand-primary-light)' }}>{s.gstin || '—'}</span>
                   </td>
                   <td data-label="Phone" style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>{s.phone || '—'}</td>
-                  <td data-label="Location" style={{ color:'var(--text-secondary)', fontSize:'0.875rem' }}>{[s.city, s.state].filter(Boolean).join(', ') || '—'}</td>
+                  <td data-label="Location">
+                    <div style={{ fontSize:'0.875rem' }}>{s.city || '—'}</div>
+                    <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{s.state_name || getStateName(s.state_code) || ''}</div>
+                  </td>
                   <td data-label="Actions">
                     <div style={{ display:'flex', gap:'var(--space-1)' }}>
                       <Link href={`/suppliers/${s.id}/edit`}>

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { formatINR } from '@/lib/gst'
+import { formatINR, getStateName } from '@/lib/gst'
 import { Icons } from '@/components/Icons'
 import type { Customer } from '@/lib/types'
 
@@ -101,9 +101,11 @@ export default function CustomersPage() {
                     </span>
                     {c.gstin && <div className="monospace" style={{ fontSize:'0.72rem', marginTop:4 }}>{c.gstin}</div>}
                   </td>
+import { formatINR, getStateName } from '@/lib/gst'
+...
                   <td data-label="Location">
                     <div style={{ fontSize:'0.875rem' }}>{c.city || '—'}</div>
-                    <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{c.state_name || ''}</div>
+                    <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{c.state_name || getStateName(c.state_code) || ''}</div>
                   </td>
                   <td data-label="Actions">
                     <div style={{ display:'flex', gap:'var(--space-1)' }}>
