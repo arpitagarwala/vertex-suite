@@ -86,7 +86,9 @@ export default function CustomersPage() {
               {filtered.map(c => (
                 <tr key={c.id}>
                   <td data-label="Name">
-                    <div style={{ fontWeight:600 }}>{c.name}</div>
+                    <Link href={`/customers/${c.id}`}>
+                      <div style={{ fontWeight: 600, color: 'var(--brand-primary-light)', cursor: 'pointer' }}>{c.name}</div>
+                    </Link>
                     {c.address && <div style={{ fontSize:'0.72rem', color:'var(--text-muted)' }}>{c.address}</div>}
                   </td>
                   <td data-label="Contact">

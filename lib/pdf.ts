@@ -30,6 +30,12 @@ interface PDFInvoiceData {
   titleOverride?: string  // optional override for purchase bills
 }
 
+export interface PDFStatementData {
+  contact: Customer
+  invoices: Invoice[]
+  profile: Profile
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 function fmtINR(n: number): string {
   return 'Rs.' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -579,4 +585,143 @@ export async function generateInvoicePDF(data: PDFInvoiceData) {
   // ── Save ───────────────────────────────────────────────────
   const filename = `${invoice.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`
   doc.save(filename)
+}
+
+/**
+ * ── Generate Contact Statement (Ledger) PDF ──
+ */
+export async function generateContactStatementPDF(data: PDFStatementData) {
+  const { contact, invoices, profile } = data
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const M = TALLY_MARGIN
+  const CW = A4.w - M.left - M.right
+  const PW = A4.w
+  const PH = A4.h
+
+  // Sort invoices by date
+  const sortedInvoices = [...invoices].sort((a, b) => 
+    new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime()
+  )
+
+  let y = M.top
+  doc.setTextColor(0,0,0)
+
+  // Header Title
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  textC(doc, 'ACCOUNT STATEMENT', PW / 2, y + 6)
+  y += 10
+  hline(doc, M.left, y, CW)
+
+  // Two columns for Company and Contact info
+  const colW = CW / 2
+  let ly = y + 5
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Company:', M.left + 2, ly)
+  doc.text('Contact Details:', M.left + colW + 2, ly)
+  ly += 4
+  
+  doc.setFontSize(10)
+  doc.text(profile.business_name || '', M.left + 2, ly)
+  doc.text(contact.name || '', M.left + colW + 2, ly)
+  ly += 5
+  
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`GSTIN: ${profile.gstin || 'N/A'}`, M.left + 2, ly)
+  doc.text(`GSTIN: ${contact.gstin || 'N/A'}`, M.left + colW + 2, ly)
+  ly += 4
+  
+  if (profile.phone || contact.phone) {
+    doc.text(`Phone: ${profile.phone || ''}`, M.left + 2, ly)
+    doc.text(`Phone: ${contact.phone || ''}`, M.left + colW + 2, ly)
+    ly += 4
+  }
+
+  y = ly + 2
+  hline(doc, M.left, y, CW)
+  vline(doc, M.left + colW, y - (ly - y + 15), y) // Divider
+  
+  // Statement Summary
+  y += 5
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  const dateRange = sortedInvoices.length > 0 
+    ? `${format(new Date(sortedInvoices[0].invoice_date), 'dd MMM yyyy')} to ${format(new Date(sortedInvoices[sortedInvoices.length-1].invoice_date), 'dd MMM yyyy')}`
+    : 'No transactions'
+  doc.text(`Period: ${dateRange}`, M.left + 2, y)
+  y += 5
+  hline(doc, M.left, y, CW)
+
+  // Table Headers
+  const cols = [0.12, 0.38, 0.15, 0.15, 0.20] // Date, Particulars, Type, Amount, Balance
+  const cw = cols.map(c => c * CW)
+  
+  doc.setFontSize(7)
+  let cx = M.left
+  const headers = ['Date', 'Particulars', 'Vch Type', 'Amount (Rs)', 'Balance (Rs)']
+  for (let i = 0; i < headers.length; i++) {
+    const a = i >= 3 ? 'right' : i === 0 ? 'left' : 'center'
+    const tx = a === 'right' ? cx + cw[i] - 2 : a === 'center' ? cx + cw[i] / 2 : cx + 2
+    doc.text(headers[i], tx, y + ROW - 1.5, { align: a as any })
+    cx += cw[i]
+  }
+  y += ROW
+  hline(doc, M.left, y, CW)
+
+  // Table Body
+  doc.setFont('helvetica', 'normal')
+  let balance = 0
+  
+  for (const inv of sortedInvoices) {
+    if (y + ROW > PH - M.bottom - 20) {
+      doc.addPage()
+      y = M.top
+      hline(doc, M.left, y, CW)
+    }
+
+    const type = inv.invoice_type === 'sale' ? 'Sales' : 'Purchase'
+    const amt = inv.grand_total
+    
+    // Logic: Sales increase balance for us (debit), Purchases increase balance for them (credit)
+    // But let's keep it simple: Net Amount due from them.
+    if (inv.invoice_type === 'sale') {
+      balance += (inv.grand_total - (inv.amount_paid || 0))
+    } else {
+      balance -= (inv.grand_total - (inv.amount_paid || 0))
+    }
+
+    cx = M.left
+    const cells = [
+      format(new Date(inv.invoice_date), 'dd-MM-yy'),
+      inv.invoice_number,
+      type,
+      fmtNum(amt),
+      fmtNum(balance)
+    ]
+
+    for (let i = 0; i < cells.length; i++) {
+      const a = i >= 3 ? 'right' : i === 0 ? 'left' : 'center'
+      const tx = a === 'right' ? cx + cw[i] - 2 : a === 'center' ? cx + cw[i] / 2 : cx + 2
+      doc.text(cells[i], tx, y + ROW - 1.5, { align: a as any })
+      cx += cw[i]
+    }
+    y += ROW
+  }
+
+  // Final Balance
+  hline(doc, M.left, y, CW)
+  doc.setFont('helvetica', 'bold')
+  textR(doc, 'Net Balance Due:', M.left + cw[0] + cw[1] + cw[2] + cw[3] - 2, y + ROW - 1.5)
+  textR(doc, 'Rs.' + fmtNum(balance), M.left + CW - 2, y + ROW - 1.5)
+  y += ROW
+  hline(doc, M.left, y, CW)
+
+  // Footer
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'italic')
+  textC(doc, 'This is a computer generated account statement for reconciliation purposes.', PW / 2, PH - M.bottom - 4)
+
+  doc.save(`${contact.name.replace(/\s+/g, '_')}_Statement.pdf`)
 }

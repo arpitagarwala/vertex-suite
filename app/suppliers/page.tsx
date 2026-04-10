@@ -84,7 +84,9 @@ export default function SuppliersPage() {
               {filtered.map(s => (
                 <tr key={s.id}>
                   <td data-label="Name">
-                    <div style={{ fontWeight:600 }}>{s.name}</div>
+                    <Link href={`/suppliers/${s.id}`}>
+                      <div style={{ fontWeight: 600, color: 'var(--brand-primary-light)', cursor: 'pointer' }}>{s.name}</div>
+                    </Link>
                     {s.email && <div style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{s.email}</div>}
                   </td>
                   <td data-label="GSTIN">
