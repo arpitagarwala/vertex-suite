@@ -7,7 +7,7 @@
  */
 import { jsPDF } from 'jspdf'
 import { numberToWords, formatNumber, getStateName } from '@/lib/gst'
-import type { Invoice, InvoiceItem, Profile, InvoiceSettings } from '@/lib/types'
+import type { Invoice, InvoiceItem, Profile, InvoiceSettings, Customer } from '@/lib/types'
 import { DEFAULT_INVOICE_SETTINGS } from '@/lib/types'
 import { format } from 'date-fns'
 
